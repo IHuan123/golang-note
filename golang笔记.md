@@ -208,7 +208,7 @@ Go语言中有丰富的数据类型，除了基本的数据类型、浮点型、
 
 ### 基本数据类型
 
-![WeChate81cefee74e3eb1a433eb742d8216109](/Volumes/T7/golang/golang笔记/imgs/WeChate81cefee74e3eb1a433eb742d8216109.png)
+![WeChate81cefee74e3eb1a433eb742d8216109](./imgs/WeChate81cefee74e3eb1a433eb742d8216109.png)
 
 ### 整型
 
@@ -231,7 +231,7 @@ Go语言中有丰富的数据类型，除了基本的数据类型、浮点型、
 
 Go语言支持两种浮点型：`float32`和`float64`。这两种浮点型数据格式遵循IEEE754 标准：float32的浮点数的最大范围约为3.4e38，可以使用常量定义：math.MaxFloat32。float64的浮点数最大约为1.8e308，可以使用常量定义：math.MaxFloat64
 
-![WeChatae6bf6b5b1aecab0e5da8c2b91ef39d6](/Volumes/T7/golang/golang笔记/imgs/WeChatae6bf6b5b1aecab0e5da8c2b91ef39d6.png)
+![WeChatae6bf6b5b1aecab0e5da8c2b91ef39d6](./imgs/WeChatae6bf6b5b1aecab0e5da8c2b91ef39d6.png)
 
 打印浮点数时，可以使用fmt包含动词%f，代码如下
 
@@ -254,7 +254,7 @@ Go语言中以`bool`类型进行声明布尔型数据，布尔型数据只有tru
 
 ### 其他数字类型
 
-![WeChat58fcb102e506e011201deaf4fa41d29b](/Volumes/T7/golang/golang笔记/imgs/WeChat58fcb102e506e011201deaf4fa41d29b.png)
+![WeChat58fcb102e506e011201deaf4fa41d29b](./imgs/WeChat58fcb102e506e011201deaf4fa41d29b.png)
 
 ### 字符串
 

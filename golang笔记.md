@@ -349,3 +349,108 @@ fmt.Print(b1.String())
 
 #### 声明数组
 
+# Go语言流程控制
+
+流程控制是每种编程语言控制逻辑走向和执行次序的重要部分，流程控制可以说是一门语言的”静脉“。
+
+Go语言中最常用的流程控制有`if`和`for`，而`switch`和`goto`主要是为了简化代码、降低重复代码而生的结构，属于扩展类的流程控制。
+
+## <font color=#C76934>if else(分支结构)</font>
+
+<font color=#C76934>if条件判断基本写法</font>
+
+Go语言中`if`条件判断的格式如下：
+
+```go
+if 表达式1{
+	分支1
+}else if 表达式2{
+	分支2
+}else{
+	分支3
+}
+```
+
+`if`条件判断语句中存在作用域，例如：
+
+```go
+if age := 20; age > 18 { //age在if中声明，{}外部无法访问，且乙方流程中的每个{}都有一个作用于（和js不同）
+		fmt.Println("成年人")
+	} else if age < 18 {
+		fmt.Println("未成年")
+	} else {
+		fmt.Println("刚成年")
+	}
+	fmt.Println(age) //这里无法访问此时的age
+```
+
+## <font color=#C76934>for(循环结构)</font>
+
+Go语言中的所有循环类型均可使用`for`关键字来完成。
+
+for循环的基本格式如下：
+
+```go
+for 初始值;条件表达式;结束语句{
+	循环体语句
+}
+```
+
+条件表达式返回`true`是循环体不停地进行循环，直到条件表达式返回`false`时自动退出循环。
+
+```go
+func forDemo() {
+	for i := 0; i <= 20; i++ {
+		fmt.Printf("%d\n", i)
+	}
+}
+```
+
+for循环的初始语句可以省略，可以使用for语句外部的声明变量，但是初始语句后的分号必须要写，例如：
+
+```go
+func forDemo(){
+	i := 0
+	for ; i <= 10; i-- {
+		fmt.Println(i)
+	}
+}
+```
+
+for循环的初始语句和结束语句都可以省略,例如：
+
+```go
+func forDemo(){
+	i := 0
+	for i <= 10 {
+		fmt.Println(i)
+		i ++
+	}
+}
+```
+
+### 无限循环
+
+```go
+for {
+	循环语句
+}
+```
+
+for循环可以通过`break`、`goto`、`return`、`panic`语句强制退出循环。
+
+### for range(键值循环)
+
+Go语言中可以使用`for range`遍历数组、切片、字符串、map及通道（channel）。通过`for range`遍历返回值有以下规律：
+
++ 数组、切片、字符串返回索引和值。
++ map返回键和值。
++ 通道（channel）只返回通道内的值。
+
+```go 
+	s := "Hello,沙河"       // 一个字符站1字节，utf8编码的在3字节
+	for i, v := range s {  //i为对应的字节位置，v为对应的字节
+		fmt.Printf("%d %c\n", i, v)
+	}
+```
+

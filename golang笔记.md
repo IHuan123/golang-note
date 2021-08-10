@@ -598,6 +598,60 @@ func main() {
 }
 ```
 
+### append()方法为切片添加元素
+
+Go语言的内建函数`append`可以为切片动态添加元素。每个切片会指向一个底层数组，这个数字能容纳一定数量的元素。当底层数组不能容纳新增的元素时，切片就会自动按照一定的策略进行扩容，此时该切片指向的底层数组就会更换。“扩容”操作往往发生在`append()`函数。举个例子：
+
+```go
+func main{
+	var numSlice []int
+  for i:=0;i<10;i++{
+    numSlice = append(numSlice,i)
+    fmt.Printf("%v len:%d cap:%d ptr:%p\n",numSlice,len(numSlice),cap(numSlice),numSlice)
+  }
+}
+```
+
+### 切片的扩容规则
+
++ 首先判断，如何新申请容量（cap）大于2倍就容量（old.cap），最终容量（newcap）就是新申请的容量（cap）。
++ 否则判断，如何旧切片的长度小于1024，则最终容量（newcap）就是旧容量（old.cap）的两倍，即（newcap=doublecap）。
++ 否则判断，如何旧切片长度大于等于1024，则最终容量（newcap）从旧容量（old.cap）开始循环增加原来的1/4，即（newcap=old.cap，for{newcap += new cap/4}）直到最终容量（newcap）大于等于新申请的容量（cap），即（newcap=>cap）
++ 如果最终容量（cap）计算值溢出，则最终容量（cap）就是新申请容量（cap）。
+
+需要注意的事，切片扩容还会根据切片中元素的类型不同而做不同的处理，比如`int`和`strint`类型处理方式就不一样。
+
+### 使用copy()函数复制切片
+
+由于切片类型是引用类型，所以a和b其实都指向了同一块内存地址。修改b的同时a的值也会发生变化。
+
+Go语言内建的`copy()`函数可以迅速的将一个切片的数据复制到另一个切片空间，`copy()`函数的使用格式如下：
+
+```go
+copy(destSlice,srcSlice,[]T) //srcSlice:数据来源切片；destSlice：目标切片
+
+//实例
+	a1 := []int{1, 3, 5}
+	a2 := a1 //赋值
+	var a3 = make([]int, 10)
+	copy(a3, a1) //copy
+	a1[0] = 200
+	fmt.Println(a1, a2, a3)
+```
+
+### 从切片中删除元素
+
+Go语言中并没有删除切片的专用方法，我们可以使用切片本身的特性删除元素。代码如下：
+
+```go
+func main(){
+  //从切片中删除元素
+  a := []int{1,2,3,4,5,6,7,8,9}
+  a = append(a[:1],a[3:]...)
+  fmt.println(a) //[1 4 5 6 7 8 9]
+}
+```
+
 
 
 # Go语言流程控制

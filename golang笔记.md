@@ -619,6 +619,8 @@ func main{
 + 否则判断，如何旧切片长度大于等于1024，则最终容量（newcap）从旧容量（old.cap）开始循环增加原来的1/4，即（newcap=old.cap，for{newcap += new cap/4}）直到最终容量（newcap）大于等于新申请的容量（cap），即（newcap=>cap）
 + 如果最终容量（cap）计算值溢出，则最终容量（cap）就是新申请容量（cap）。
 
+![cap](/Volumes/D/Golang笔记/Golang-/imgs/cap.png)
+
 需要注意的事，切片扩容还会根据切片中元素的类型不同而做不同的处理，比如`int`和`strint`类型处理方式就不一样。
 
 ### 使用copy()函数复制切片
@@ -652,7 +654,106 @@ func main(){
 }
 ```
 
+### 指针
 
+Go语言中不存在指针操作，只需要记住两个符号：
+
+​	1.`&`：取地址
+
+​	2.`*` :根据地址取值
+
+#### 指针取值
+
+在对普通变量使用&操作符取地址后会获得这个变量的指针，然后可以对指针使用*操作，也就是指针取值，代码如下。
+
+```go
+// pointer
+func main() {
+	// 1.&:取地址
+	n := 18
+	fmt.Println(&n)
+	p := &n
+	fmt.Println(p)
+	fmt.Printf("%T\n", p)
+	//*：根据地址取值
+	m := *p
+	fmt.Println(m)
+}
+```
+
+**总结**：取地址操作符`&`和取值符``*`是对互补操作符，`&`取出地址，`*`根据地址取出地址指向的值。
+
+变量、指针地址、指针变量、取地址、取值的相互关系和特性如下：
+
++ 对变量进行取地址（&）操作，可以获得这个变量的指针变量。
++ 指针变量的值是指向地址。
++ 对指针变量进行取值（*）操作，可以获得指针变量的原变量的值。
+
+### new和make
+
+```go
+func main(){
+	var a *int
+  *a = 100
+  fmt.Println(*a)
+  var b map[string]int
+  b["沙河娜扎"]=100
+  fmt.Println(b)
+}
+```
+
+执行上面的代码会引发panic，为什么呢？在go语言中对于引用类型的变量，我们在使用的时候不仅要声明它，还要为他=分配内存空间，否则我们的值就没办法存储。而对于值的类型不需要分配内存空间，是因为他们在声明的时候已经默认分配好了内存空间。要分配内存，就引出来今天的new和make。Go语言中new和make是内建的两个函数，主要用来分配内存。
+
+#### new
+
+new是一个内置函数，它的函数签名如下：
+
+```go
+fun new(Type) *Type
+```
+
+其中：
+
++ Type表示类型，new函数只接受一个参数，这个参数是一个类型
++ *Type表示类型指针，new函数返回一个指向该类型内存地址的指针。
+
+new函数不太常用，使用new函数得到的是一个类型的指针，并且该指针对应的值为该类型的零值。举个例子：
+
+```go
+func main(){
+	a:=new(int)
+	b:=new(bool)
+	fmt.Printf("%T\n",a) //*int
+	fmt.Printf("%T\n",b) // *bool
+	fmt.Println(*a)			// 0	
+	fmt.Println(*b)			//false
+}
+```
+
+#### make
+
+make也是用于内存分配的，区别于new，它只用于slice，map以及chan的内存创建，而且它返回的类型就是这三个本身，而不是它们的指针类型，因为这三种类型就是引用类型，所以就没有必要返回他们的指针了。make函数的函数签名如下：
+
+```go
+func make(t Type,size ...InterType) Type
+```
+
+make函数是无可替代的，我们在使用slice、map以及channel的时候，都需要使用make进行初始化，然后才可以对它们进行操作。
+
+本节开始的示例中`var b map[string]int`只是声明变量b是一个map类型的变量，需要像下面的示例代码一样使用make函数进行初始化操作之后，才能对其进行键值对赋值：
+
+```go
+func main(){
+	var b map[string]int
+	b = make(map[string]int,10)
+	b["沙河娜扎"] = 100
+	fmt.Println(b)
+}
+```
+
+make和new的区别
+
+1.make和new都是用来申请内存的。
 
 # Go语言流程控制
 

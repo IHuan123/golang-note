@@ -354,9 +354,7 @@ fmt.Print(b1.String())
 var a [3]int
 ```
 
-
-
-#### 声明数组(数组定义)
+### 声明数组(数组定义)
 
 ```go
 var 数组变量名 [元素数量]T
@@ -383,7 +381,7 @@ a = b //不可以这样做，因为此时a和b是不同的类型
   | ④ var arr = [...]int{1,2} //var 数组名称 = [...]数组元素类型{元素1,元素2,...}，不定长数组声明方式 |
   | ⑤ new()：创建的是**数组引针**,eg. var arr1 = new([5]int)     |
 
-#### 数组的初始化
+### 数组的初始化
 
 ```go
 	//数组初始化
@@ -402,9 +400,7 @@ a = b //不可以这样做，因为此时a和b是不同的类型
 	fmt.Println(a3)
 ```
 
-
-
-#### 值传递和引用传递
+### 值传递和引用传递
 
 ```go
 var arr1 = new([5]int)
@@ -428,7 +424,7 @@ fmt.Println(arr2[2],newarr[2])
 
   
 
-#### 数组的遍历
+### 数组的遍历
 
 ```go
 	//数组的遍历
@@ -443,7 +439,7 @@ fmt.Println(arr2[2],newarr[2])
 	}
 ```
 
-#### 多维数组
+### 多维数组
 
 ```go
 //多维数组
@@ -463,11 +459,11 @@ fmt.Println(arr2[2],newarr[2])
 	}
 ```
 
-#### 数组是值类型
+### 数组是值类型
 
 数组是值类型，赋值和传参会复制整个数组。因此改变副文本的值，不会改变本身的值。
 
-#### 注意
+### 注意
 
 1.数组支持"=="、"!="操作符，因为内存总是被初始化过的。
 
@@ -654,7 +650,7 @@ func main(){
 }
 ```
 
-### 指针
+## 指针
 
 Go语言中不存在指针操作，只需要记住两个符号：
 
@@ -662,7 +658,7 @@ Go语言中不存在指针操作，只需要记住两个符号：
 
 ​	2.`*` :根据地址取值
 
-#### 指针取值
+### 指针取值
 
 在对普通变量使用&操作符取地址后会获得这个变量的指针，然后可以对指针使用*操作，也就是指针取值，代码如下。
 
@@ -723,10 +719,10 @@ new函数不太常用，使用new函数得到的是一个类型的指针，并�
 func main(){
 	a:=new(int)
 	b:=new(bool)
-	fmt.Printf("%T\n",a) //*int
+	fmt.Printf("%T\n",a) // *int
 	fmt.Printf("%T\n",b) // *bool
-	fmt.Println(*a)			// 0	
-	fmt.Println(*b)			//false
+	fmt.Println(*a)			 // 0	
+	fmt.Println(*b)			 // false
 }
 ```
 
@@ -754,6 +750,89 @@ func main(){
 make和new的区别
 
 1.make和new都是用来申请内存的。
+
+2.new很少用，一般用来给基本的数据类型申请内存，string\int，返回的是对应类型的指针（*string、*int）。
+
+3.make是用来给`slice`、`map`、`chan`申请内存的，make函数返回的是对应的这三个类型本身。
+
+## Map(集合)
+
+Map是一种无序的键值对的集合。Map最重要的一点是通过key来快速检索数据，key类似于数据，key类似于索引，指向数据的值。
+
+Map是一种集合，所以我们可以像迭代数组和切片那样迭代它。不过，Map是无序的，我们无法决定它的返回顺序，这是因为Map是使用hash表累实现。
+
+### Map定义
+
+Go语言中`map`的定义语法如下啊：
+
+```go
+map[keyType]ValueType
+```
+
+其中：
+
++ KeyType：表示键的类型。
++ ValueType：表示键对应的类型。
+
+map类型的变量默认初始值为nil，需要使用make()函数来分配内存。语法为：
+
+```go
+make(map[keyType]ValueType,[cap])
+```
+
+
+
+其中cap表示map的容量，该参数虽然不是必须的，但是我们应该在初始化map的时候就为其指定一个合适的容量。
+
+### 按照指定顺序遍历map
+
+```go
+func main(){
+  rand.Seed(time.Now().UnixNano)//初始化随机数种子
+  var scoreMap = make(map[string]int,200)
+  for i := 0; i < 100; i++{
+    key := fmt.Sprintf("stu%02d", i) //生成stu开头的字符串
+    value := rand.Intn(100)
+    scoreMap[key] = value
+  }
+  //取出map中的所有key存入切片keys
+  var keys = make([]string,0,20)
+  for key := range scoreMap {
+    keys = append(keys,key)
+  }
+  //对切片进行排序
+  sort.Strings(keys)
+  //按照排序后的key遍历map
+  for _, key := range keys{
+    fmt.Println(key,scoreMap[key])
+  }
+}
+```
+
+### 元素类型为map的切片
+
+```go
+func main() {
+	// 元素类型为map的切片
+	var s1 = make([]map[int]string, 10)
+	s1[0] = make(map[int]string, 1)
+	s1[0][1] = "A"
+	fmt.Println(s1) //[map[1:A] map[] map[] map[] map[] map[] map[] map[] map[] map[]]
+}
+```
+
+### 元素为切片类型的map
+
+```go
+func main() {
+	// 元素为切片类型的map
+	var m1 = make(map[string][]int, 10)
+	m1["s1"] = []int{1, 2, 3, 4, 5}
+	fmt.Println(m1) //map[s1:[1 2 3 4 5]]
+}
+```
+
+
 
 # Go语言流程控制
 
@@ -1130,4 +1209,93 @@ Go 语言支持的位运算符如下表所示。假定 A 为60，B 为13：
 | 1      | \|\|             |
 
 <font color=green>当然，你可以通过使用括号来临时提升某个表达式的整体运算优先级。</font>
+
+# 函数
+
+Go语言中支持函数、匿名函数和闭包，并且函数在Go语言中属于“一等公民”。
+
+## 函数的定义
+
+Go语言中定义函数使用`func`关键字，具体如下：
+
+```go
+func 函数名(参数)(返回值){
+	函数体
+}
+```
+
+其中：
+
+* 函数名：由字母、数字、下划线组成。但函数名的第一个字母不能是数字。在同一个包内，函数名称也不能重名。
+* 参数：参数由参数变量和参数变量的类型组成，多个参数之间使用“，”分割。
+* 返回值：返回值由返回值和其变量类型组成，也可以只写返回值的类型，多个返回值必须用“（）”包裹，并用“，”分割。
+* 函数体：实现指定功能的代码块。
+
+```go
+package main
+
+import "fmt"
+
+//函数
+
+//函数存在的意义？
+//函数是一段代码的封装
+//把一段逻辑抽象出来封装到一个函数中，给它起个名字，每次用到它的时候直接调用
+//使用函数能够让代码更清晰、更简洁。
+
+//函数的定义
+func sum(x int, y int) (ret int) {
+	return x + y
+}
+
+//没有返回值的函数
+func f1(x int, y int) {
+	fmt.Println(x + y)
+}
+
+//没有参数但由返回值的函数
+func f3() int {
+	return 100
+}
+
+//参数可以命名也可以不命名
+//命名的返回值就相当于函数中声明一个变量
+func f4(x int, y int) (ret int) {
+	ret = x + y
+	fmt.Println(ret)
+	return
+}
+
+//多个返回值
+func f5() (int, string) {
+	return 1, "沙河"
+}
+
+//参数的类型简写
+//(当参数中连续两个参数的类型一致时，我们可以将非最后一个参数的类型省略)
+func f6(x, y int, m, n string, i, j bool) int {
+	return x + y
+}
+
+//可边长参数
+//可边长参数必须放在参数最后
+func f7(x string, y ...int) {
+	fmt.Println(x) //下雨了
+	fmt.Println(y) //[30 1 12 4 4 1 14 1] y的类型是切片 []int
+}
+
+//Go语言中函数没有默认参数这个概念
+func main() {
+	r := sum(10, 20)
+	fmt.Println(r)
+	f1(1, 2)
+	fmt.Println(f3())
+	fmt.Println(f4(11, 22))
+	fmt.Println(f5())
+	num := f6(6, 5, "", "", true, false)
+	fmt.Println(num)
+	f7("下雨了", 30, 1, 12, 4, 4, 1, 14, 1)
+}
+
+```
 

@@ -1299,3 +1299,387 @@ func main() {
 
 ```
 
+注意：在一个命名函数中不能在声明命名函数。
+
+## defer语句
+
+Go语言中`defer`语句会将其后面跟随的语句进行延迟出来。在`defer`归属的函数即将返回时，将延迟出来的语句按`defer`定义的逆序进行执行，也就是说，先被`defer`语句最后被执行，最后`defer`的语句，最先被执行。
+
+```go
+func main(){
+	fmt.Println("start")
+	defer fmt.Println(1)
+	defer fmt.Println(2)
+	defer fmt.Println(3)
+	fmt.Println("end")
+}
+```
+
+输出结构：
+
+```go
+start
+3
+2
+1
+end
+```
+
+由于`defer`语句延迟调用的特性，所以`defer`语句非常方便的处理资源释放问题。比如：资源清理、文件关闭、解锁及记录时间。
+
+## defer执行时机
+
+在Go语言的函数中`return `语句在底层并不是原子操作，它分为给返回值赋值和RET指令两步。而`defer`语句执行的时机就在返回值赋值操作后，RET指令执行前。具体如下图：
+
+![defer](./imgs/defer.png 'defer')
+
+示例：
+
+```go
+
+//Go语言中函数的return不是原子操作，在底层是分为两步来执行
+//第一步：返回值赋值
+//第二步：真正的return返回
+//函数中如果存在defer，那么defer执行的时机是在第一步和第二步之间
+func f1() int {  
+	x := 5
+	defer func() {
+		x++
+	}()
+	return x  // 5
+}
+func f2() (x int) {
+	defer func() {
+		x++
+	}()
+	return 5 // 6
+}
+func f3() (y int) {
+	x := 5
+	defer func() {
+		x++
+	}()
+	return x // 5
+}
+func f4() (x int) {
+	defer func(x int) {
+		x++
+	}(x)
+	return x // 0
+}
+func f5()(x int){
+  defer func(x int) int {
+    x++
+    return x
+  }(x)
+  return 5 //5
+}
+```
+
+
+
+# 函数的进阶
+
+## 变量作用域
+
+### 全局变量
+
+全局变量是定义在函数外部的变量，它在程序整个运行周期内都有效。在函数中可以访问到全局变量。
+
+```go
+package main
+
+import "fmt"
+//定义全局变量
+var num int64 = 10
+func testGlobalVar(){
+	fmt.Printf("num:%d\n",num)//函数中可以访问全局变量num
+}
+func main(){
+	testGlobalVar() //num:10
+}
+```
+
+### 局部变量
+
+局部变量又分为两种：函数内定义的变量无法在该函数外使用，例如下面代码main函数中无法使用testLocalVar函数中定义的变量x:
+
+```go
+func testLocalVar(){
+	//定义一个函数局部变量x，仅在该函数内生效
+	var x int64 = 100
+	fmt.Printf("x=%d\n",x)
+}
+func main(){
+	testLocalVar()
+	fmt.Println(x) //此时无法使用变量x
+}
+```
+
+如何局部变量和全局变量重名，优先访问局部变量。
+
+在`if`或者`for`语句块中的变量不能在语句外部访问。
+
+## 函数类型和变量
+
+### 定义函数类型
+
+我们可以使用`type`关键字来定义一个函数类型，具体格式如下：
+
+```go
+type calclation func(int, int) int
+```
+
+上面语句定义了一个`calculation`类型，它是一种函数类型，这种函数接受两个int类型的参数并且返回一个int类型的返回值。
+
+简单来说，凡是满足这个条件的函数都是calculation类型的函数，例如下面的add和sub是calculation类型。
+
+```go
+func add(x, y int) int {
+	return x + y
+}
+func sub(x, y int) int {
+	reutrn x - y
+}
+```
+
+## 匿名函数
+
+没有名字的函数，一般在函数内部使用。
+
+```go
+func main() {
+	//匿名函数
+	f := func() {
+		fmt.Println("匿名函数")
+	}
+	f()
+	//立即执行函数
+	func() {
+		fmt.Println("立即执行函数")
+	}()
+}
+```
+
+## 闭包
+
+闭包指的是一个函数和与其相关的引用环境组合而成的实体。简单来说，`闭包=函数+引用环境`。
+
+下面例子：
+
+```go
+func adder() func(int) int{
+  var x int
+  return func(y int) int {
+    x += y
+    return x
+  }
+}
+func main(){
+  var f = adder()
+  fmt.Println(f(10))
+  fmt.Println(f(20))
+  fmt.Println(f(30))
+  
+  f1 := addre()
+  fmt.Println(f(40))
+  fmt.Println(f(50))
+}
+```
+
+变量`f`是一个函数并且它应用了其外部作用域中的`x`变量，此时`f`就是一个闭包。在`f`的生命周期内，变量`x`也一直有效。
+
+进阶示例：
+
+```go
+package main
+
+import (
+	"fmt"
+	"strings"
+)
+
+//闭包
+//示例1
+func makeSuffixFunc(suffix string) func(string) string {
+	return func(name string) string {
+		if !strings.HasSuffix(name, suffix) {
+			return name + suffix
+		}
+		return name
+	}
+}
+
+//示例2
+func calc(base int) (func(int) int, func(int) int) {
+	add := func(i int) int {
+		base += i
+		return base
+	}
+	sub := func(i int) int {
+		base -= i
+		return base
+	}
+	return add, sub
+}
+func main() {
+	jpgFunc := makeSuffixFunc(".jpg")
+	txtFunc := makeSuffixFunc(".text")
+	fmt.Println(jpgFunc("test")) //test.jpg
+	fmt.Println(txtFunc("test")) //test.text
+
+	f1, f2 := calc(10)
+	fmt.Println(f1(1)) //11
+	fmt.Println(f2(2)) //9
+}
+```
+
+## 内置函数
+
+| 内置函数       | 介绍                                                         |
+| -------------- | ------------------------------------------------------------ |
+| close          | 主要用来关闭channel                                          |
+| len            | 用来求长度，比如string、array、slice、map、channel           |
+| new            | 用来分配内存，主要用来分配值类型，比如int、struct。返回的是指针 |
+| make           | 用来分配内存，主要用来分配引用类型，比如chan、map、slice     |
+| append         | 用来追加元素到数组、slice中                                  |
+| panic和recover | 用来做错误处理                                               |
+
+### panic/recover
+
+Go语言中目前是没有异常机制，但是使用`panic/recover`模式来处理错误。`panic`可以在任何地方引发，但`recover`只有在`defer`调佣的函数中有效。示例：
+
+```go
+func funcA(){
+  fmt.Println("func A")
+}
+func funcB(){
+  panic("panic in B")
+}
+func funcC(){
+  fmt.Println("func C")
+}
+func main(){
+  funcA()
+  funcB()
+  funcC()
+}
+```
+
+程序运行期间`funcB`中引发了`panic`导致程序崩溃，异常退出了。这个时候我们就可以通过`recover`将程序恢复回来，继续执行。
+
+```go
+//panic 和 recover
+func funcA() {
+	fmt.Println("A")
+}
+func funcB() {
+	defer func() {
+		err := recover()
+    //如果程序出现了panic错误，可以通过recover恢复过来
+    if err!=nil{
+      fmt.Println(err)
+    }
+		fmt.Println("模拟数据库连接...")
+	}()
+	panic("出现了严重的错误！！！") //程序崩溃退出
+	fmt.Println("B")
+}
+func funcC() {
+	fmt.Println("C")
+}
+func main() {
+	funcA()
+	funcB()
+}
+```
+
+注意：
+
+​	1.recover()必须搭配defer使用。
+
+​	2.defer一定要在可能引发panic的语句之前定义。
+
+### fmt
+
+标准库`fmt`提供了一下几种输出相关函数。
+
+#### Print
+
+`Print`系列函数会将内容输出到系统的标准输出，区别在于`Print`函数直接输出内容，`Printf`函数支持格式化输出字符串，`Println`函数会在输出内容的结尾添加一行换行符。
+
+```go
+func Print(a ...interface{}) (n int,err error)
+func Printf(format string,a ...interface{}) (n int,err error)
+// Pirntf("格式化字符串",值)
+// %T：查看类型  %d：十进制   %b：二进制   %o：八进制   %x：十六进制   %c：字符   %s：字符串
+// %p：指针   %v：值   %f：浮点数   %t：布尔值
+func Println(a ...interface{}) (n int,err error)
+```
+
+#### Fprint
+
+`Fprint`系列函数会将内容输出到一个`io.Writer`接口类型的变量`w`中，我们通常用这个函数往文件中写入内容。
+
+#### 通用站位符
+
+| 站位符 | 说明                               |
+| ------ | ---------------------------------- |
+| %v     | 值的默认格式表示                   |
+| %+v    | 类似%v，但输出结构体时会添加字段名 |
+| %#v    | 值的Go语法表示                     |
+| %T     | 打印值的类型                       |
+| %%     | 百分号                             |
+
+#### 布尔型
+
+| 占位符 | 说明        |
+| ------ | ----------- |
+| %t     | true或false |
+
+#### 整型
+
+| 占位符 | 说明                                                         |
+| ------ | ------------------------------------------------------------ |
+| %b     | 二进制                                                       |
+| %c     | 对应的uincode                                                |
+| %d     | 十进制                                                       |
+| %o     | 八进制                                                       |
+| %x     | 十六进制，使用a-f                                            |
+| %X     | 十六进制，使用A-F                                            |
+| %U     | 表示Unicode格式：U+1234,等价于“U+%o4X”                       |
+| %q     | 该值对应的单引号括起来的go语法字符字面值，必要时会采用安全的转义表示 |
+
+#### 浮点数与复数
+
+| 占位符 | 说明                                                     |
+| ------ | -------------------------------------------------------- |
+| %d     | 无小数部分，二进制指数的科学计数法，如-123456p-78        |
+| %e     | 科学计数法，如-1234.456e+78                              |
+| %E     | 科学计数法，如-1234.456eE+78                             |
+| %f     | 有小数部分但无指数部分，如123.456                        |
+| %F     | 等价于%f                                                 |
+| %g     | 根据实际情况采用%e或者%f格式（以获得更简洁、准确的输出） |
+| %G     | 根据实际情况采用%E或者%F格式（以获取更简洁、准确的输出） |
+
+#### 字符串和[]byte
+
+| 占位符 | 说明                                                         |
+| ------ | ------------------------------------------------------------ |
+| %s     | 直接输出字符串或者[]type                                     |
+| %q     | 该值对应的双引号括起来的go语法字符串字面值，必要时会采用安全的转义表示 |
+| %x     | 每个字节用两字符十六进制数表示（使用a-f                      |
+| %X     | 每个字节用两字符十六进制数表示（使用A-F                      |
+
+#### 宽度标识符
+
+宽度通过一个紧跟在百分号后面的十进制数指定，如果未指定宽度，则表示值时除必需之外不做填充。精度通过（可选的）宽度后跟点号后跟点十进制指定。如何未指定精度，会使用默认精度；如果点号后没有跟数字，表示精度为o。
+
+| 占位符 | 说明               |
+| ------ | ------------------ |
+| %f     | 默认宽度，默认精度 |
+| %9f    | 宽度9，默认精度    |
+| %.2f   | 默认宽度，精度2    |
+| %9.f   | 宽度9，精度2       |
+| %9.f   | 宽度9，精度0       |
+

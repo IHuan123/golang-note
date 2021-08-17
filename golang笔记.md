@@ -1843,3 +1843,139 @@ func main() {
 
 ```
 
+## 创建指针类型的结构体
+
+我们还可以通过`new`关键字对结构体进行实例化，得到的是结构体的地址。格式如下：
+
+```go
+var p2 = new(person)
+fmt.Printf("%T\n",p2)  //*main.person
+fmt.Printf("p2=%#v\n",p2) //p2=&main.person{name:"",city:"",age:0}
+```
+
+从打印的结果中我们可以看出`p2`值一个结构体指针。
+
+需要注意的是在Go语言中指出对结构体指针直接使用`.`来访问结构体成员。
+
+```go
+var p2 = new(person)
+p2.name="小王子"
+p2.age=18
+p2.city="上海"
+fmt.Printf("p2=%3v\n",p2) //p2=&main.person{name:"小王子",city:"上海",age:18}
+```
+
+## 取结构体的地址实例化
+
+使用`&`对结构体进行取地址操作相当于对该结构体类型进行了一次`new`实例化操作。
+
+```go
+p3:=&person{}
+fmt.Printf("%T\n",p3) //*main.person
+fmt.Printf("p3=%#v\n",p3) //p3=&main.person{name:"",city:"",age:0}
+p3.name = "七米"
+p3.age = 30
+p3.city="成都"
+fmt.Printf("p3=%#v\n",p3)//p3=&main.person{name:"七米",city:"成都",age:30}
+```
+
+`p3.name="七米"`其实在底层是`(*p3).name="七米"`,这是Go语言帮我们实现的语法糖。
+
+## 结构体初始化
+
+没有初始化的结构体，其成员变量都是对应类型的零值。
+
+```go
+//结构体是值类型
+type person struct {
+	name, sex string
+	age       int
+}
+func main(){
+  //结构体指针1
+	var p2 = new(person)
+	fmt.Printf("%#v %p\n", p2) //&main.person{name:"", sex:"女", age:0}
+}
+
+```
+
+### 使用键值对初始化
+
+使用键值对对结构体进行初始化，键对应结构体的字段，值对应字段的初始值。
+
+```go
+	var p3 = person{
+		name: "展博",
+		age:  20,
+		sex:  "男",
+	}
+	fmt.Printf("%#v %p\n", p3, &p3) //main.person{name:"展博", sex:"男", age:20} 0xc00006e2d0
+```
+
+也可以对结构体指针进行键值对初始化，例如 ：
+
+```go
+	//key-value初始化,使用的值列表的形式初始化，值的顺序要和结构体定义时字段的顺序一致
+	p3 := &person{
+		name: "展博",
+		age:  20,
+		sex:  "男",
+	}
+	fmt.Printf("%#v %p\n", p3, &p3) //main.person{name:"展博", sex:"男", age:20} 0xc00006e2d0
+```
+
+当某些字段没有初始值时，该字段可以不写。此时，没有指定初始值的字段的值就是该字段类型的零值。
+
+```go
+p7 :=&person{
+	city:"北京"
+}
+fmt.Printf("p7=%#v\n",p7) // p7=&main.person{name:"",city:"北京",age:0}
+```
+
+### 使用值的列表初始化
+
+初始化结构体的时候可以简写，也就是简写时可以不用写键，直接写值：
+
+```go
+	//key-value初始化,使用的值列表的形式初始化，值的顺序要和结构体定义时字段的顺序一致
+	p4 := &person{
+		"lilei",
+		"男",
+		20,
+	}
+	fmt.Printf("%#v %p\n", p4, &p4) //main.person{name:"lilei", sex:"男", age:20} 0xc00006e330
+```
+
+使用这种格式初始化时，需要注意：
+
++ 必须初始化结构体所有字段。
++ 初始值的填充顺序必须与字段就在结构体中的声明顺序一致。
++ 该方式不能和键值初始化方式混用。
+
+## 结构体内存分布
+
+结构体占用一块连续的内存。
+
+```go
+//结构体占用一块连续的内存空间
+type x struct {
+	a int8 // 8bit->1byte
+	b int8
+	c int8
+}
+
+func main() {
+	m := x{
+		int8(10),
+		int8(20),
+		int8(30),
+	}
+	fmt.Printf("%p\n", &m.a) //0xc000124002
+	fmt.Printf("%p\n", &m.b) //0xc000124003
+	fmt.Printf("%p\n", &m.c) //0xc000124004
+}
+```
+
+【进阶知识】关于Go语言中的内存对齐推荐阅读：[在Go中恰到好处的内存对齐](https://segmentfault.com/a/1190000017527311?utm_campaign=studygolang.com&utm_medium=studygolang.com&utm_source=studygolang.com)
+

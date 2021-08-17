@@ -1683,4 +1683,3 @@ func Println(a ...interface{}) (n int,err error)
 | %9.f   | 宽度9，精度2       |
 | %9.f   | 宽度9，精度0       |
 
-#### test

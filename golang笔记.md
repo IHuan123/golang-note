@@ -1683,3 +1683,163 @@ func Println(a ...interface{}) (n int,err error)
 | %9.f   | 宽度9，精度2       |
 | %9.f   | 宽度9，精度0       |
 
+### 其他flag
+
+| 占位符 | 说明                                                         |
+| ------ | ------------------------------------------------------------ |
+| "+"    | 总是输出数值的正负号；对%q（%+q）会生成全部是ASCII字符的输出（通过转义）； |
+| ""     | 对数值，正数前加空格而负数前加负号；对字符串采用%x或%X时（%x或%X）会给各打印的字节之间加空格。 |
+| "_"    | 在输出右边填充空白而不是默认的左边（即从默认的右对齐切换为左对齐）； |
+| "#"    | 八进制数前加o（%#o），十六进制数前加ox（%#x）或者oX（%#X），指针去掉前的ox（%#p），对%q（%#q），对%U（%#U）会输出空格和单引号括起来的go字面值。 |
+| "o"    | 使用o而不是空格填充，对于数值类型会把填充的o放在正负号后面； |
+
+## 递归函数
+
+递归，就是在运行的过程中调用自己。
+
+语法格式如下：
+
+```go
+func recursion() {
+   recursion() /* 函数调用自身 */
+}
+
+func main() {
+   recursion()
+}
+```
+
+Go 语言支持递归。但我们在使用递归时，开发者需要设置退出条件，否则递归将陷入无限循环中。
+
+递归函数对于解决数学上的问题是非常有用的，就像计算阶乘，生成斐波那契数列等。
+
+# Go语言基础结构体
+
+Go语言中没有“类”的概念，也不支持“类”的继承等面向对象的概念。Go语言中通过结构体的内嵌再配合接口比面向对象具有更高的扩展和灵活性。
+
+# 类型别名和自定义类型
+
+## 自定义类型
+
+在Go语言中有一些基本的数据，如`string`、`整型`、`浮点型`、`布尔`等数据类型，Go语言中可以使用`type`关键字来定义自定义类型。
+
+自定义类型是定义一个全新的类型。我们呢过可以基于内置的基本类型定义，也可以通过struct定义。例如：
+
+```gp
+//将MyInt定义为int类型
+type MyInt int
+```
+
+通过`Type`关键字的定义，`MyInt`就是一种新的类型，它具有`int`的特性。
+
+## 类型别名
+
+类型别名规定：TypeAlias只是Type的别名，本质上TypeAlias与Type是同一个类型。就像一个孩子小时候有小名、乳名，上学后用学名，英语老师又会给它起英文名，但这些名字都指的是他本人。
+
+```
+type TypeAlias = Type
+```
+
+我们之前见的`rune`和`byte`就是类型别名，它们定义如下：
+
+```go
+type byte = uint8
+type rune = int32
+```
+
+## 类型定义和类型别名的区别
+
+类型别名与类型定义表面上只有一个等号的差异，我们通过下面的这段代码来理解它们之间的区别。
+
+```go
+package main
+
+import "fmt"
+
+//自定义类型和别名
+
+//type后面跟的是类型
+type myInt int     //自定义类型
+type yourInt = int //类型别名
+
+func main() {
+	var n myInt
+	n = 100
+	fmt.Println(n)        //100
+	fmt.Printf("%T\n", n) //main.myInt
+
+	var m yourInt
+	m = 100
+	fmt.Println(m)        //100
+	fmt.Printf("%T\n", m) //int
+
+	var c rune
+	c = '中'
+	fmt.Println(c)        //20013
+	fmt.Printf("%T\n", c) //int32
+}
+```
+
+结果显示n的类型是`main.myInt`，表示main包下面定义的类型。m的类型是`int`。myInt类型只会在代码中存在，编译完成是并不会有myInt类型。
+
+# 结构体
+
+Go语言中基本数据类型可以表示一下事物的基本属性，但是当我们想表达一个事物的全部或者部分属性时，这时候再用单一的基本数据类型明显就无法满足需求了，Go语言提供了一种自定义数据类型，可以封装多个基本数据类型，这种数据类型叫结构体，英文名叫`struct`。也就是我们可以通过`struct`来定义自己的类型了。
+
+## 结构体的定义
+
+使用`type`和`struct`关键字来定义结构体，具体代码格式如下：
+
+```go
+type 类型名 struct {
+	字段名 字段类型
+	字段名 字段类型
+	...
+}
+```
+
+其中：
+
++ 类型名：标识自定义结构体的名称，在同一个包内不能重复。
++ 字段名：标识结构体字段名。结构体中的字段名必须唯一。
++ 字段类型：标识结构体字段的具体类型。
+
+```go
+package main
+import "fmt"
+//结构体
+type person struct {
+	name   string
+	age    int
+	gender string
+	hobby  []string
+}
+func main() {
+	//声明一个person类型的变量zhangsan
+	var zhangsan person
+	//通过字段赋值
+	zhangsan.name = "zhangsan"
+	zhangsan.age = 20
+	zhangsan.gender = "男"
+	zhangsan.hobby = []string{"篮球", "足球"}
+	//访问变量zhangsan的字段
+	fmt.Printf("%T\n", zhangsan) //main.person
+	fmt.Println(zhangsan)        //{zhangsan 20 男 [篮球 足球]}
+	fmt.Println(zhangsan.name)   //zhangsan
+}
+```
+
+## 匿名结构体
+
+```go
+//匿名结构体
+	var s struct { //使用var声明变量作为结构体名
+		x string
+		y int
+	}
+	s.x = "hehehe"
+	s.y = 100
+	fmt.Printf("type:%T value:%v \n", s, s) //type:struct { x string; y int } value:{hehehe 100}
+
+```
+

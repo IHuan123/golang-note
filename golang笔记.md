@@ -2096,3 +2096,108 @@ func mian(){
 
 ***注意事项***：非本地类型不能定义方法，也就是说我们不能给别的包的类型定义方法。
 
+# 学生系统
+
+```go
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+//学习管理系统函数版
+/*
+	需求
+	查看、新增、删除 学生
+
+*/
+var (
+	allStuden map[int64]*studen
+)
+
+type studen struct {
+	id   int64
+	name string
+}
+
+func newStudent(id int64, name string) *studen {
+	return &studen{id, name}
+}
+func showAllStuden() {
+	if len(allStuden) == 0 {
+		fmt.Println("没有学生")
+	}
+	//遍历所有的学生
+	for k, v := range allStuden {
+		fmt.Printf("学号：%d 姓名：%s\n", k, v.name)
+	}
+}
+func addStuden() {
+	//向allStuden中添加一个新的学生
+	//创建一个新学生
+	var (
+		id   int64
+		name string
+	)
+	fmt.Println("请输入学号：")
+	fmt.Scanln(&id)
+	fmt.Println("请输入姓名")
+	fmt.Scanln(&name)
+	var stu = newStudent(id, name)
+	//追加到allStuden中
+	allStuden[id] = stu
+
+}
+func deleteStuden() {
+	var (
+		id int64
+	)
+	fmt.Println("请输入要删除学号：")
+	fmt.Scanln(&id)
+	for k := range allStuden {
+		fmt.Println(k)
+		if k == id {
+			delete(allStuden, id)
+			fmt.Printf("学号为%d的学生已删除\n", id)
+		} else {
+			fmt.Println("没有找到该学生")
+		}
+	}
+}
+func main() {
+	allStuden = make(map[int64]*studen, 48)
+	for {
+		//1.打印菜单
+		fmt.Println("欢迎光临学生管理系统！！！")
+		fmt.Println(`
+			1、查看所有学生
+			2、新增学生
+			3、删除学生
+			4、退出
+		`)
+		//2.等待用户选择
+		fmt.Println("请输入你要干啥：")
+		var choice int
+		fmt.Scanln(&choice)
+		fmt.Printf("你选择了%d这个选项！\n", choice)
+
+		//3.执行对应的函数
+		switch choice {
+		case 1:
+			showAllStuden()
+		case 2:
+			addStuden()
+		case 3:
+			deleteStuden()
+		case 4:
+			os.Exit(1) //退出
+		default:
+			fmt.Println("滚！")
+		}
+	}
+
+}
+
+```
+

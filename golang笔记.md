@@ -1983,7 +1983,7 @@ func main() {
 
 【进阶知识】关于Go语言中的内存对齐推荐阅读：[在Go中恰到好处的内存对齐](https://segmentfault.com/a/1190000017527311?utm_campaign=studygolang.com&utm_medium=studygolang.com&utm_source=studygolang.com)
 
-# 构造函数
+## 构造函数
 
 返回一个结构体变量的函数。
 
@@ -2024,7 +2024,7 @@ func main() {
 
 ```
 
-# 方法和接受者
+## 方法和接受者
 
 Go语言中的`方法（Method）`是一种作用于特定类型变量的函数。这种特定类型变量叫做`接收者（Receiver）`。接受者的概念就类似于其他语言中的`this`或者`self`。
 
@@ -2096,7 +2096,7 @@ func mian(){
 
 ***注意事项***：非本地类型不能定义方法，也就是说我们不能给别的包的类型定义方法。
 
-# 学生系统
+## 函数版学生系统
 
 ```go
 package main
@@ -2197,6 +2197,73 @@ func main() {
 		}
 	}
 
+}
+
+```
+
+## 结构体的匿名字段
+
+<font color=red>不常用</font>
+
+结构体允许其成员字段在生命时没有字段名而只有类型，这种没有名字的字段称为匿名字段。
+
+```go
+//Person结构体Person类型
+type Person struct{
+	string
+	int
+}
+func main(){
+	p1:=Person{
+		"小王子",
+		18,
+	}
+  fmt.Printf("%#v\n",p1)  //main.Person{string:"小王子",int:18}
+  fmt.Println(p1.string,p1.int) //小王子 18
+}
+```
+
+匿名字段默认采用类型名作为字段名，结构体要求字段名称必须唯一，因此一个结构体中同种类型的匿名字段只鞥有一个。
+
+### 嵌套结构体
+
+一个结构体中还可以嵌套其他的结构体或者指针。
+
+```go
+
+//嵌套结构体
+type address struct {
+	province string
+	city     string
+}
+type workPlace struct {
+	province string
+	city     string
+}
+type person struct {
+	name    string
+	age     int
+	address //匿名嵌套结构体
+	// workPlace
+	//address address
+}
+type company struct {
+	name string
+	addr address
+}
+
+func main() {
+	p1 := person{
+		name: "zhouling",
+		age:  90,
+		address: address{
+			province: "山东",
+			city:     "威海",
+		},
+	}
+	fmt.Println(p1)
+	fmt.Println(p1.name, p1.address.city)
+	fmt.Println(p1.city) //先在自己的结构体中查找这个字段，如果不存在就去匿名嵌套结构体中查找字段,当有两个或多个匿名嵌套结构体存在相同字段时，就不能使用简写
 }
 
 ```

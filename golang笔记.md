@@ -782,6 +782,8 @@ make(map[keyType]ValueType,[cap])
 
 
 
+
+
 其中cap表示map的容量，该参数虽然不是必须的，但是我们应该在初始化map的时候就为其指定一个合适的容量。
 
 ### 按照指定顺序遍历map
@@ -1786,6 +1788,8 @@ func main() {
 
 Go语言中基本数据类型可以表示一下事物的基本属性，但是当我们想表达一个事物的全部或者部分属性时，这时候再用单一的基本数据类型明显就无法满足需求了，Go语言提供了一种自定义数据类型，可以封装多个基本数据类型，这种数据类型叫结构体，英文名叫`struct`。也就是我们可以通过`struct`来定义自己的类型了。
 
+结构体是值类型，赋值的时候是拷贝。
+
 ## 结构体的定义
 
 使用`type`和`struct`关键字来定义结构体，具体代码格式如下：
@@ -1978,4 +1982,117 @@ func main() {
 ```
 
 【进阶知识】关于Go语言中的内存对齐推荐阅读：[在Go中恰到好处的内存对齐](https://segmentfault.com/a/1190000017527311?utm_campaign=studygolang.com&utm_medium=studygolang.com&utm_source=studygolang.com)
+
+# 构造函数
+
+返回一个结构体变量的函数。
+
+```go
+
+//构造函数
+type person struct {
+	name string
+	age  int
+}
+//构造函数：约定成俗以new开头
+//返回的是结构体还是结构体指针
+//当结构体比较大的时候尽量使用结构体指针，减少程序的内存开销
+func newPerson(name string, age int) *person {
+	return &person{
+		name,
+		age,
+	}
+}
+
+type dog struct {
+	name string
+}
+
+func newDog(name string) dog {
+	return dog{
+		name,
+	}
+}
+func main() {
+	var p = newPerson("lilei", 30) //main.person{name:"lilei", age:30}
+
+	p2 := newPerson("周林", 90) //main.person{name:"周林", age:90}
+	fmt.Printf("%#v %#v\n", p, p2)
+	d1 := newDog("林狗")
+	fmt.Printf("%#v\n", d1) //main.dog{name:"林狗"}
+}
+
+```
+
+# 方法和接受者
+
+Go语言中的`方法（Method）`是一种作用于特定类型变量的函数。这种特定类型变量叫做`接收者（Receiver）`。接受者的概念就类似于其他语言中的`this`或者`self`。
+
+方法的定义格式如下：
+
+```
+func (接受者变量 接受者类型) 方法名(参数列表)(返回参数){
+	函数体
+}
+```
+
+其中：
+
++ 接收者变量：接收者中的参数变量名在命名时，官方建议使用接收者类型名的第一个小写字母，而不是`self`、`this`之类的命名。例如，`Person`类型的接收者变量应该命名为`p`，Connector类型的接收者变量应该命名为c等。
++ 接收者类型：接收者类型参数类型，可以是指针和非指针类型。
++ 方法名、参数列表、返回参数：具体格式与函数定义相同。
+
+```go
+//方法和接收者
+type dog struct {
+	name string
+	age  int
+}
+
+//构造函数
+func newDog(name string, age int) dog {
+	return dog{
+		name,
+		age,
+	}
+}
+
+//方法是作用于特定类型的函数
+//d:形参 dog:类型
+//接收者表示的是调用该方法的具体类型变量，多用类型名首字母小写表示
+func (d dog) wang() {
+	fmt.Println("汪汪汪", d.name)
+}
+func main() {
+	d1 := newDog("zhoulin", 20)
+	d1.wang() //汪汪汪 zhoulin
+}
+```
+
+### 什么时候应该使用指针类型接收者
+
++ 需要修改接收者中的值。
++ 接收者是拷贝代价比较到的大对象。
++ 保证一致性，如果有某个方法使用了指针接收者，那么其他的方法也应该使用指针接收者。
+
+### 任意类型添加方法
+
+在Go语言中，接收者的类型可以是任何累，不仅仅是结构体，任何类型都可以拥有方法。举个例子，我们基于内置的`int`类型使用type关键字可以定义新的自定义类型，然后为我们的自定义类型添加方法。
+
+```go
+//MyInt 将int定义为MyInt类型
+type MyInt int
+//SayHello 为MyInt添加一个SayHello的方法
+func (m MyInt) SayHello(){
+	fmt.Println("Hello,我是一个int。")
+}
+func mian(){
+	var m1 MyInt
+	m1.SayHello() //Hello，我是一个int。
+	m1 = 100
+	fmt.Printf("%#v %T\n",m1,m1) //100 main.MyInt
+}
+```
+
+***注意事项***：非本地类型不能定义方法，也就是说我们不能给别的包的类型定义方法。
 

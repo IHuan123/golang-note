@@ -3084,3 +3084,83 @@ import _ "包的路径"
 Go语言包会从`main`包开始检查其导入的所有包，每个包中又可能导入了其他的包。Go编译器由此构建出一个树状的包引用关系，再根据引用顺序决定编译顺序，依次编译这些包的代码。
 
 在运行时，被最后导入的包会最先初始化并调用其`init()`函数， 如下图示：![包之间的init()执行顺序](./imgs/init02.png)
+
+# 文件操作
+
+计算机中的文件储存在外部介质（磁盘）上的数据集合，文件分为文本文件和二进制文件。
+
+## 打开和关闭文件
+
+`os.Open()`函数能够打开一个文件，返回一个`*File`和一个`err`。对得到的文件安实例调用`close()`方法能够关闭文件。
+
+```go
+import (
+	"fmt"
+	"os"
+)
+
+//文件操作
+func main() {
+	//打开文件
+	file, err := os.Open("../test/main.go")
+	if err != nil {
+		fmt.Println("open file failed,err:", err)
+	}
+	//记得关闭文件
+	defer file.Close()
+
+}
+
+```
+
+为了防止文件忘记关闭，我们通常使用defer注册文件关闭语句。
+
+## 读取文件
+
+File.Read()
+
+基本使用
+
+Read方法定义如下：
+
+```go
+func (f *File) Read(b []type)(n int,err error)
+```
+
+它接收一个字节切片，返回读取的字节数和可能的具体错误，读到文件末尾时会返回`0`和`io.EOF`。实例：
+
+```go
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+//文件操作
+func main() {
+	//打开文件
+	file, err := os.Open("/Volumes/D/Golang笔记/Golang-/golang笔记.md")
+	if err != nil {
+		fmt.Printf("open file failed,err:%v\n", err)
+	}
+	//记得关闭文件
+	defer file.Close()
+	//读取文件
+	var tmp = make([]byte, 128) //指定读的长度
+	// var tmp = [128]byte
+	for {
+		n, err := file.Read(tmp)
+		if err != nil {
+			fmt.Printf("read from failed,err:%v\n", err)
+		}
+		fmt.Printf("读了%d字节：\n", n)
+		fmt.Println(string(tmp[:n]))
+		if n == 0 {
+			return
+		}
+	}
+
+}
+```
+

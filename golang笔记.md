@@ -3117,7 +3117,7 @@ func main() {
 
 ## 读取文件
 
-File.Read()
+### File.Read()
 
 基本使用
 
@@ -3161,6 +3161,149 @@ func main() {
 		}
 	}
 
+}
+```
+
+### bufio读取文件
+
+bufio是在file的基础上封装了一层API，支持更多的功能。
+
+````go
+package main
+
+import (
+	"bufio"
+	"fmt"
+	"io"
+	"os"
+)
+
+func main() {
+	readFromFilebyBufio()
+}
+
+//利用bufio这个包读取文件
+func readFromFilebyBufio() {
+	fileObj, err := os.Open("/Users/superhuan/Desktop/函数.md")
+	if err != nil {
+		fmt.Printf("open file failed,error %v\n", err)
+	}
+	//关闭文件
+	defer fileObj.Close()
+	//创建一个用来从文件中读的对象
+	reader := bufio.NewReader(fileObj)
+	for {
+		line, err := reader.ReadString('\n') //注意这里是字节
+		if err == io.EOF {
+      fmt.Println("文件读完了")
+			break
+		}
+		if err != nil {
+			fmt.Printf("read line failed,err :%v\n", err)
+			return
+		}
+		fmt.Println(line)
+	}
+}
+````
+
+### ioutil读取文件
+
+`io/ioutil`包的`ReadFile`方法能够读取完整的文件，只需将文件名作为参数传入。
+
+```go
+func readFromByIoutil() {
+	file, err := ioutil.ReadFile("/Users/superhuan/Desktop/函数.md")
+	if err != nil {
+		fmt.Printf("read file failed,error:%v\n", err)
+	}
+	fmt.Println(string(file))
+}
+```
+
+## 文件写入
+
+`os.OpenFile()`函数能够以指定模式打开文件，从而实现文件写入相关功能。
+
+```go
+func os.OpenFile(name string, flag int, perm fs.FileMode) (*os.File, error){
+	...
+}
+```
+
+其中：
+
+`name`：要打开的文件路径。
+
+`flag`：打开文件的模式。
+
+模式有以下几种：
+
+| 模式         | 含义     |
+| ------------ | -------- |
+| os.O_WRTONLY | 只写     |
+| os.O_CREATE  | 创建文件 |
+| os.O_RDONLY  | 只读     |
+| os.O_RDWR    | 读写     |
+| os.O_TRUNC   | 清空     |
+| os.O_APPEND  | 追加     |
+
+`perm`:文件权限，一个八进制数。r（读）04，w（写）02，x（执行）01.
+
+### Write和WriteString
+
+```go
+
+//打开文件写入内容
+var path = "/Users/superhuan/Desktop/GoProject/src/superWangHuan.com/wanghaun"
+func main() {
+	fileObj, err := os.OpenFile(path+"/static/test.text", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+	if err != nil {
+		fmt.Printf("open file failed, error: %v", err)
+		return
+	}
+	defer fileObj.Close()
+	str := "你好， 北京! \n wecome to beijin !!!"
+	//write
+	// fileObj.Write([]byte(str)) //写入字节切片数据
+	//writeString
+	fileObj.WriteString(str) //直接写入字节串数据
+}
+
+```
+
+### Bufio.NewWriter
+
+- bufio包实现了带缓冲区的读写，是对文件读写的封装
+- bufio缓冲写数据
+
+```go
+func selfNewWriter(filePath string) {
+	str := "你好， 北京! \n wecome to beijin !!!"
+	fileObj, err := os.OpenFile(filePath, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
+	if err != nil {
+		fmt.Printf("open file failed, error: %v", err)
+		return
+	}
+	defer fileObj.Close()
+	//创建一个写的对象
+
+	wr := bufio.NewWriter(fileObj)
+	wr.WriteString(str) //写入缓存中
+	wr.Flush()          //将缓存中的内容写入文件
+}
+```
+
+### Ioutil.WriteFile
+
+```go
+func main(){
+	str:="hello 世界！！！"
+	err:=ioutil.WriteFile("./xx.txt",[]byte(str),0666)
+	if err!=nil{
+		fmt.Printf("write file failed, error: %v\n",err)
+		return 
+	}
 }
 ```
 

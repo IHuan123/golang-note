@@ -1733,7 +1733,65 @@ func Println(a ...interface{}) (n int,err error)
 
 #### Fprint
 
-`Fprint`系列函数会将内容输出到一个`io.Writer`接口类型的变量`w`中，我们通常用这个函数往文件中写入内容。
+Fprint系列函数会将内容输出到一个io.Writer接口类型的变量w中，我们通常用这个函数往文件中写入内容。
+
+```go
+func Fprint(w io.Writer, a ...interface{}) (n int, err error)
+func Fprintf(w io.Writer, format string, a ...interface{}) (n int, err error)
+func Fprintln(w io.Writer, a ...interface{}) (n int, err error)
+```
+
+举个例子：
+
+```go
+// 向标准输出写入内容
+fmt.Fprintln(os.Stdout, "向标准输出写入内容")
+fileObj, err := os.OpenFile("./xx.txt", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+if err != nil {
+    fmt.Println("打开文件出错，err:", err)
+    return
+}
+name := "枯藤"
+// 向打开的文件句柄中写入内容
+fmt.Fprintf(fileObj, "往文件中写如信息：%s", name)
+```
+
+注意，只要满足io.Writer接口的类型都支持写入。
+
+#### Sprint
+
+Sprint系列函数会把传入的数据生成并返回一个字符串。
+
+```go
+func Sprint(a ...interface{}) string
+func Sprintf(format string, a ...interface{}) string
+func Sprintln(a ...interface{}) string
+```
+
+简单的示例代码如下：
+
+```go
+s1 := fmt.Sprint("枯藤")
+name := "枯藤"
+age := 18
+s2 := fmt.Sprintf("name:%s,age:%d", name, age)
+s3 := fmt.Sprintln("枯藤")
+fmt.Println(s1, s2, s3)
+```
+
+#### Errorf
+
+Errorf函数根据format参数生成格式化字符串并返回一个包含该字符串的错误。
+
+```go
+func Errorf(format string, a ...interface{}) error
+```
+
+通常使用这种方式来自定义错误类型，例如：
+
+```go
+err := fmt.Errorf("这是一个错误")
+```
 
 #### 通用站位符
 
@@ -3487,3 +3545,56 @@ if err != nil {
 fmt.Println(timeObj)
 fmt.Println(timeObj.Sub(now))
 ```
+
+# Log
+
+需求分析
+
+1.支持往不同的地方输出日志。
+
+2.日志分级别：
+
++ Debug
++ Trace
++ Info
++ Warning
++ Error
++ Fatal
+
+3.日志要支持开关控制。
+
+4.日志要有时间、行号、文件名、日志级别、日志信息
+
+5.日志文件要分割。
+
+## 使用Logger
+
+log包定义了Logger类型，该类型提供了一些格式化输出的方法。本包也提供了一个预定义的“标准”logger，可以通过调用函数Print系列(Print|Printf|Println）、Fatal系列（Fatal|Fatalf|Fatalln）、和Panic系列（Panic|Panicf|Panicln）来使用，比自行创建一个logger对象更容易使用。
+
+例如，我们可以像下面的代码一样直接通过log包来调用上面提到的方法，默认它们会将日志信息打印到终端界面：
+
+```go
+package main
+
+import (
+    "log"
+)
+
+func main() {
+    log.Println("这是一条很普通的日志。")
+    v := "很普通的"
+    log.Printf("这是一条%s日志。\n", v)
+    log.Fatalln("这是一条会触发fatal的日志。")
+    log.Panicln("这是一条会触发panic的日志。")
+}
+```
+
+编译并执行上面的代码会得到如下输出：
+
+```
+    2019/10/11 14:04:17 这是一条很普通的日志。
+    2019/10/11 14:04:17 这是一条很普通的日志。
+    2019/10/11 14:04:17 这是一条会触发fatal的日志。
+```
+
+logger会打印每条日志信息的日期、时间，默认输出到系统的标准错误。Fatal系列函数会在写入日志信息后调用os.Exit(1)。Panic系列函数会在写入日志信息后panic。

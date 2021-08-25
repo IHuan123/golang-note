@@ -3598,3 +3598,708 @@ func main() {
 ```
 
 logger会打印每条日志信息的日期、时间，默认输出到系统的标准错误。Fatal系列函数会在写入日志信息后调用os.Exit(1)。Panic系列函数会在写入日志信息后panic。
+
+#  1. 反射
+
+反射是指在程序运行期对程序本身进行访问和修改的能力
+
+### 1.1.1. 变量的内在机制
+
+- 变量包含类型信息和值信息 var arr [10]int arr[0] = 10
+- 类型信息：是静态的元信息，是预先定义好的
+- 值信息：是程序运行过程中动态改变的
+
+### 1.1.2. 反射的使用
+
+- reflect包封装了反射相关的方法
+- 获取类型信息：reflect.TypeOf，是静态的
+- 获取值信息：reflect.ValueOf，是动态的
+
+### 1.1.3. 空接口与反射
+
+- 反射可以在运行时动态获取程序的各种详细信息
+- 反射获取interface类型信息
+
+```go
+package main
+
+import (
+   "fmt"
+   "reflect"
+)
+
+//反射获取interface类型信息
+
+func reflect_type(a interface{}) {
+   t := reflect.TypeOf(a)
+   fmt.Println("类型是：", t)
+   // kind()可以获取具体类型
+   k := t.Kind()
+   fmt.Println(k)
+   switch k {
+   case reflect.Float64:
+      fmt.Printf("a is float64\n")
+   case reflect.String:
+      fmt.Println("string")
+   }
+}
+
+func main() {
+   var x float64 = 3.4
+   reflect_type(x)
+}
+```
+
+- 反射获取interface值信息
+
+```go
+package main
+
+import (
+    "fmt"
+    "reflect"
+)
+
+//反射获取interface值信息
+
+func reflect_value(a interface{}) {
+    v := reflect.ValueOf(a)
+    fmt.Println(v)
+    k := v.Kind()
+    fmt.Println(k)
+    switch k {
+    case reflect.Float64:
+        fmt.Println("a是：", v.Float())
+    }
+}
+
+func main() {
+    var x float64 = 3.4
+    reflect_value(x)
+}
+```
+
+- 反射修改值信息
+
+```go
+package main
+
+import (
+    "fmt"
+    "reflect"
+)
+
+//反射修改值
+func reflect_set_value(a interface{}) {
+    v := reflect.ValueOf(a)
+    k := v.Kind()
+    switch k {
+    case reflect.Float64:
+        // 反射修改值
+        v.SetFloat(6.9)
+        fmt.Println("a is ", v.Float())
+    case reflect.Ptr:
+        // Elem()获取地址指向的值
+        v.Elem().SetFloat(7.9)
+        fmt.Println("case:", v.Elem().Float())
+        // 地址
+        fmt.Println(v.Pointer())
+    }
+}
+
+func main() {
+    var x float64 = 3.4
+    // 反射认为下面是指针类型，不是float类型
+    reflect_set_value(&x)
+    fmt.Println("main:", x)
+}
+```
+
+### 1.1.4. 结构体与反射
+
+查看类型、字段和方法
+
+```go
+package main
+
+import (
+    "fmt"
+    "reflect"
+)
+
+// 定义结构体
+type User struct {
+    Id   int
+    Name string
+    Age  int
+}
+
+// 绑方法
+func (u User) Hello() {
+    fmt.Println("Hello")
+}
+
+// 传入interface{}
+func Poni(o interface{}) {
+    t := reflect.TypeOf(o)
+    fmt.Println("类型：", t)
+    fmt.Println("字符串类型：", t.Name())
+    // 获取值
+    v := reflect.ValueOf(o)
+    fmt.Println(v)
+    // 可以获取所有属性
+    // 获取结构体字段个数：t.NumField()
+    for i := 0; i < t.NumField(); i++ {
+        // 取每个字段
+        f := t.Field(i)
+        fmt.Printf("%s : %v", f.Name, f.Type)
+        // 获取字段的值信息
+        // Interface()：获取字段对应的值
+        val := v.Field(i).Interface()
+        fmt.Println("val :", val)
+    }
+    fmt.Println("=================方法====================")
+    for i := 0; i < t.NumMethod(); i++ {
+        m := t.Method(i)
+        fmt.Println(m.Name)
+        fmt.Println(m.Type)
+    }
+
+}
+
+func main() {
+    u := User{1, "zs", 20}
+    Poni(u)
+}
+```
+
+查看匿名字段
+
+```go
+package main
+
+import (
+    "fmt"
+    "reflect"
+)
+
+// 定义结构体
+type User struct {
+    Id   int
+    Name string
+    Age  int
+}
+
+// 匿名字段
+type Boy struct {
+    User
+    Addr string
+}
+
+func main() {
+    m := Boy{User{1, "zs", 20}, "bj"}
+    t := reflect.TypeOf(m)
+    fmt.Println(t)
+    // Anonymous：匿名
+    fmt.Printf("%#v\n", t.Field(0))
+    // 值信息
+    fmt.Printf("%#v\n", reflect.ValueOf(m).Field(0))
+}
+```
+
+修改结构体的值
+
+```go
+package main
+
+import (
+    "fmt"
+    "reflect"
+)
+
+// 定义结构体
+type User struct {
+    Id   int
+    Name string
+    Age  int
+}
+
+// 修改结构体值
+func SetValue(o interface{}) {
+    v := reflect.ValueOf(o)
+    // 获取指针指向的元素
+    v = v.Elem()
+    // 取字段
+    f := v.FieldByName("Name")
+    if f.Kind() == reflect.String {
+        f.SetString("kuteng")
+    }
+}
+
+func main() {
+    u := User{1, "5lmh.com", 20}
+    SetValue(&u)
+    fmt.Println(u)
+}
+```
+
+调用方法
+
+```go
+package main
+
+import (
+    "fmt"
+    "reflect"
+)
+
+// 定义结构体
+type User struct {
+    Id   int
+    Name string
+    Age  int
+}
+
+func (u User) Hello(name string) {
+    fmt.Println("Hello：", name)
+}
+
+func main() {
+    u := User{1, "5lmh.com", 20}
+    v := reflect.ValueOf(u)
+    // 获取方法
+    m := v.MethodByName("Hello")
+    // 构建一些参数
+    args := []reflect.Value{reflect.ValueOf("6666")}
+    // 没参数的情况下：var args2 []reflect.Value
+    // 调用方法，需要传入方法的参数
+    m.Call(args)
+}
+```
+
+获取字段的tag
+
+```go
+package main
+
+import (
+    "fmt"
+    "reflect"
+)
+
+type Student struct {
+    Name string `json:"name1" db:"name2"`
+}
+
+func main() {
+    var s Student
+    v := reflect.ValueOf(&s)
+    // 类型
+    t := v.Type()
+    // 获取字段
+    f := t.Elem().Field(0)
+    fmt.Println(f.Tag.Get("json"))
+    fmt.Println(f.Tag.Get("db"))
+}
+```
+
+### 1.1.5. 反射练习
+
+- 任务：解析如下配置文件
+  - 序列化：将结构体序列化为配置文件数据并保存到硬盘
+  - 反序列化：将配置文件内容反序列化到程序的结构体
+- 配置文件有server和mysql相关配置
+
+```
+#this is comment
+;this a comment
+;[]表示一个section
+[server]
+ip = 10.238.2.2
+port = 8080
+
+[mysql]
+username = root
+passwd = admin
+database = test
+host = 192.168.10.10
+port = 8000
+timeout = 1.2
+```
+
+# Strconv
+
+strconv包实现了基本数据类型与其字符串表示的转换，主要有以下常用函数： Atoi()、Itia()、parse系列、format系列、append系列。
+
+更多函数请查看[官方文档](https://golang.org/pkg/strconv/)。
+
+### 1.1.1. string与int类型转换
+
+这一组函数是我们平时编程中用的最多的。
+
+### 1.1.2. Atoi()
+
+Atoi()函数用于将字符串类型的整数转换为int类型，函数签名如下。
+
+```go
+func Atoi(s string) (i int, err error)
+```
+
+如果传入的字符串参数无法转换为int类型，就会返回错误。
+
+```go
+s1 := "100"
+i1, err := strconv.Atoi(s1)
+if err != nil {
+    fmt.Println("can't convert to int")
+} else {
+    fmt.Printf("type:%T value:%#v\n", i1, i1) //type:int value:100
+}
+```
+
+### 1.1.3. Itoa()
+
+Itoa()函数用于将int类型数据转换为对应的字符串表示，具体的函数签名如下。
+
+```go
+func Itoa(i int) string
+```
+
+示例代码如下：
+
+```go
+i2 := 200
+s2 := strconv.Itoa(i2)
+fmt.Printf("type:%T value:%#v\n", s2, s2) //type:string value:"200"
+```
+
+### 1.1.4. a的典故
+
+【扩展阅读】这是C语言遗留下的典故。C语言中没有string类型而是用字符数组(array)表示字符串，所以Itoa对很多C系的程序员很好理解。
+
+### 1.1.5. Parse系列函数
+
+Parse类函数用于转换字符串为给定类型的值：ParseBool()、ParseFloat()、ParseInt()、ParseUint()。
+
+### 1.1.6. ParseBool()
+
+```go
+func ParseBool(str string) (value bool, err error)
+```
+
+返回字符串表示的bool值。它接受1、0、t、f、T、F、true、false、True、False、TRUE、FALSE；否则返回错误。
+
+### 1.1.7. ParseInt()
+
+```go
+func ParseInt(s string, base int, bitSize int) (i int64, err error)
+```
+
+返回字符串表示的整数值，接受正负号。
+
+base指定进制（2到36），如果base为0，则会从字符串前置判断，”0x”是16进制，”0”是8进制，否则是10进制；
+
+bitSize指定结果必须能无溢出赋值的整数类型，0、8、16、32、64 分别代表 int、int8、int16、int32、int64；
+
+返回的err是`*NumErr`类型的，如果语法有误，err.Error = ErrSyntax；如果结果超出类型范围err.Error = ErrRange。
+
+### 1.1.8. ParseUnit()
+
+```go
+func ParseUint(s string, base int, bitSize int) (n uint64, err error)
+```
+
+ParseUint类似ParseInt但不接受正负号，用于无符号整型。
+
+### 1.1.9. ParseFloat()
+
+```go
+func ParseFloat(s string, bitSize int) (f float64, err error)
+```
+
+解析一个表示浮点数的字符串并返回其值。
+
+如果s合乎语法规则，函数会返回最为接近s表示值的一个浮点数（使用IEEE754规范舍入）。
+
+bitSize指定了期望的接收类型，32是float32（返回值可以不改变精确值的赋值给float32），64是float64；
+
+返回值err是`*NumErr`类型的，语法有误的，err.Error=ErrSyntax；结果超出表示范围的，返回值f为±Inf，err.Error= ErrRange。
+
+### 1.1.10. 代码示例
+
+```go
+b, err := strconv.ParseBool("true")
+f, err := strconv.ParseFloat("3.1415", 64)
+i, err := strconv.ParseInt("-2", 10, 64)
+u, err := strconv.ParseUint("2", 10, 64)
+```
+
+这些函数都有两个返回值，第一个返回值是转换后的值，第二个返回值为转化失败的错误信息。
+
+### 1.1.11. Format系列函数
+
+Format系列函数实现了将给定类型数据格式化为string类型数据的功能。
+
+### 1.1.12. FormatBool()
+
+```go
+func FormatBool(b bool) string
+```
+
+根据b的值返回”true”或”false”。
+
+### 1.1.13. FormatInt()
+
+```go
+func FormatInt(i int64, base int) string
+```
+
+返回i的base进制的字符串表示。base 必须在2到36之间，结果中会使用小写字母’a’到’z’表示大于10的数字。
+
+### 1.1.14. FormatUint()
+
+```go
+func FormatUint(i uint64, base int) string
+```
+
+是FormatInt的无符号整数版本。
+
+### 1.1.15. FormatFloat()
+
+```go
+func FormatFloat(f float64, fmt byte, prec, bitSize int) string
+```
+
+函数将浮点数表示为字符串并返回。
+
+bitSize表示f的来源类型（32：float32、64：float64），会据此进行舍入。
+
+fmt表示格式：’f’（-ddd.dddd）、’b’（-ddddp±ddd，指数为二进制）、’e’（-d.dddde±dd，十进制指数）、’E’（-d.ddddE±dd，十进制指数）、’g’（指数很大时用’e’格式，否则’f’格式）、’G’（指数很大时用’E’格式，否则’f’格式）。
+
+prec控制精度（排除指数部分）：对’f’、’e’、’E’，它表示小数点后的数字个数；对’g’、’G’，它控制总的数字个数。如果prec 为-1，则代表使用最少数量的、但又必需的数字来表示f。
+
+### 1.1.16. 代码示例
+
+```go
+s1 := strconv.FormatBool(true)
+s2 := strconv.FormatFloat(3.1415, 'E', -1, 64)
+s3 := strconv.FormatInt(-2, 16)
+s4 := strconv.FormatUint(2, 16)
+```
+
+### 1.1.17. 其他
+
+### 1.1.18. isPrint()
+
+```go
+func IsPrint(r rune) bool
+```
+
+返回一个字符是否是可打印的，和unicode.IsPrint一样，r必须是：字母（广义）、数字、标点、符号、ASCII空格。
+
+### 1.1.19. CanBackquote()
+
+```go
+func CanBackquote(s string) bool
+```
+
+返回字符串s是否可以不被修改的表示为一个单行的、没有空格和tab之外控制字符的反引号字符串。
+
+### 1.1.20. 其他
+
+除上文列出的函数外，strconv包中还有Append系列、Quote系列等函数。具体用法可查看[官方文档](https://golang.org/pkg/strconv/)。
+
+# Go语言并发
+
+## 并发与并行
+
+并发：同一时间段内执行多个任务
+
+并行：同一时刻执行多个任务
+
+Go语言的并发通过`goroutine`实现。`goroutine`类似于线程，属于用户态的线程，我们可以根据需要创建成千上万个`goroutine`并发工作。`goroutine`是由Go语言的运行时(runtime)调度完成，而线程是由操作系统调度完成。
+
+Go语言还提供`channel`在多个`goroutine`见进行通信。`goroutine`和`channel`是Go语言秉承的GSP（Communicating Sequential Process）并发模式的重要实现基础。
+
+## goroutine
+
+在java/c++中我们要实现并发编程的时候，我们通常需要自己维护一个线程池，并且需要自己去包装一个又一个的任务，同时需要自己去调度线程执行任务并维护上下文切换，这一切通常会耗费程序员大量的心智。那么能不能有一种机制，程序员只需要定义很多个任务，让系统去帮助我们把这些任务分配到CPU上实现并发执行呢？
+
+Go语言中的`goroutine`就是这样一种机制，`goroutine`的概念类似于线程，但 `goroutine`是由Go的运行时（runtime）调度和管理的。Go程序会智能地将 goroutine 中的任务合理地分配给每个CPU。Go语言之所以被称为现代化的编程语言，就是因为它在语言层面已经内置了调度和上下文切换的机制。
+
+在Go语言编程中你不需要去自己写进程、线程、协程，你的技能包里只有一个技能–`goroutine`，当你需要让某个任务并发执行的时候，你只需要把这个任务包装成一个函数，开启一个`goroutine`去执行这个函数就可以了，就是这么简单粗暴。
+
+## 使用goroutine
+
+Go语言中使用`goroutine`非常简单，只需要在调用函数的时候在前面加上`go`关键字，就可以为一个函数创建一个`goroutine`。
+
+一个`goroutine`必定对应一个函数，可以创建多个`goroutine`去执行相同函数。
+
+### 启动单个goroutine
+
+启动goroutine的方式非常简单，只需要在调用的函数（普通函数和匿名函数）前面加上一个`go`关键字。
+
+举个例子如下：
+
+```go
+func hello() {
+	fmt.Println("Hello Goroutine!")
+}
+func main() {
+	hello()
+	fmt.Println("main goroutine done!")
+}
+```
+
+这个示例中hello函数和下面的语句是串行的，执行的结果是打印完`Hello Goroutine!`后打印`main goroutine done!`。
+
+接下来我们在调用hello函数前面加上关键字`go`，也就是启动一个goroutine去执行hello这个函数。
+
+```go
+func main() {
+	go hello() // 启动另外一个goroutine去执行hello函数
+	fmt.Println("main goroutine done!")
+}
+```
+
+这一次的执行结果只打印了`main goroutine done!`，并没有打印`Hello Goroutine!`。为什么呢？
+
+在程序启动时，Go程序就会为`main()`函数创建一个默认的`goroutine`。
+
+当main()函数返回的时候该`goroutine`就结束了，所有在`main()`函数中启动的`goroutine`会一同结束，`main`函数所在的`goroutine`就像是权利的游戏中的夜王，其他的`goroutine`都是异鬼，夜王一死它转化的那些异鬼也就全部GG了。
+
+所以我们要想办法让main函数等一等hello函数，最简单粗暴的方式就是`time.Sleep`了。
+
+```go
+func main() {
+	go hello() // 启动另外一个goroutine去执行hello函数
+	fmt.Println("main goroutine done!")
+	time.Sleep(time.Second)
+}
+```
+
+执行上面的代码你会发现，这一次先打印`main goroutine done!`，然后紧接着打印`Hello Goroutine!`。
+
+首先为什么会先打印`main goroutine done!`是因为我们在创建新的goroutine的时候需要花费一些时间，而此时main函数所在的`goroutine`是继续执行的。
+
+## math/rand
+
+```go
+func f() {
+	rand.Seed(time.Now().UnixNano()) //保证每次执行的时间都不一样
+	for i := 0; i < 5; i++ {
+		n1 := rand.Int()
+		n2 := rand.Intn(10) // 0 <= x <10
+		fmt.Println(n1, n2)
+	}
+
+}
+```
+
+
+
+## 启动多个goroutine
+
+在Go语言中实现并发就是这样简单，我们还可以启动多个`goroutine`。（sync.Waiting来实现goroutine的同步）
+
+```go
+func f1(i int) {
+	defer wg.Done()
+	time.Sleep(time.Second * time.Duration(rand.Intn(3)))
+	fmt.Println(i)
+}
+
+var wg sync.WaitGroup
+
+func main() {
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go f1(i)
+	}
+	//如何知道这10个goroutine都结束了
+	wg.Wait() //等待wg的计数器减为0
+}
+
+```
+
+多次执行上面的代码，会发现每次打印的数字的顺序都不一致。这是因为10个`goroutine`是并发执行的，而`goroutine`的调度是随机的。
+
+## goroutine与线程
+
+### 可增长的栈
+
+OS线程（操作系统线程）一般都有固定的栈内存（通常为2MB）,一个`goroutine`的栈在其生命周期开始时只有很小的栈（典型情况下2KB），`goroutine`的栈不是固定的，他可以按需增大和缩小，`goroutine`的栈大小限制可以达到1GB，虽然极少会用到这么大。所以在Go语言中一次创建十万左右的`goroutine`也是可以的。
+
+### goroutine调度
+
+`GPM`是Go语言运行时（runtime）层面的实现，是go语言自己实现的一套调度系统。区别于操作系统调度OS线程。
+
+- `G`很好理解，就是个goroutine的，里面除了存放本goroutine信息外 还有与所在P的绑定等信息。
+- `P`管理着一组goroutine队列，P里面会存储当前goroutine运行的上下文环境（函数指针，堆栈地址及地址边界），P会对自己管理的goroutine队列做一些调度（比如把占用CPU时间较长的goroutine暂停、运行后续的goroutine等等）当自己的队列消费完了就去全局队列里取，如果全局队列里也消费完了会去其他P的队列里抢任务。
+- `M（machine）`是Go运行时（runtime）对操作系统内核线程的虚拟， M与内核线程一般是一一映射的关系， 一个groutine最终是要放到M上执行的；
+
+P与M一般也是一一对应的。他们关系是： P管理着一组G挂载在M上运行。当一个G长久阻塞在一个M上时，runtime会新建一个M，阻塞G所在的P会把其他的G 挂载在新建的M上。当旧的G阻塞完成或者认为其已经死掉时 回收旧的M。
+
+P的个数是通过`runtime.GOMAXPROCS`设定（最大256），Go1.5版本之后默认为物理线程数。 在并发量大的时候会增加一些P和M，但不会太多，切换太频繁的话得不偿失。
+
+单从线程调度讲，Go语言相比起其他语言的优势在于OS线程是由OS内核来调度的，`goroutine`则是由Go运行时（runtime）自己的调度器调度的，这个调度器使用一个称为m:n调度的技术（复用/调度m个goroutine到n个OS线程）。 其一大特点是goroutine的调度是在用户态下完成的， 不涉及内核态与用户态之间的频繁切换，包括内存的分配与释放，都是在用户态维护着一块大的内存池， 不直接调用系统的malloc函数（除非内存池需要改变），成本比调度OS线程低很多。 另一方面充分利用了多核的硬件资源，近似的把若干goroutine均分在物理线程上， 再加上本身goroutine的超轻量，以上种种保证了go调度方面的性能。
+
+### GOMAXPROCS
+
+Go运行时的调度器使用`GOMAXPROCS`参数来确定需要使用多少个OS线程来同时执行Go代码。默认值是机器上的CPU核心数。例如在一个8核心的机器上，调度器会把Go代码同时调度到8个OS线程上（GOMAXPROCS是m:n调度中的n）。
+
+Go语言中可以通过`runtime.GOMAXPROCS()`函数设置当前程序并发时占用的CPU逻辑核心数。
+
+Go1.5版本之前，默认使用的是单核心执行。Go1.5版本之后，默认使用全部的CPU逻辑核心数。
+
+我们可以通过将任务分配到不同的CPU逻辑核心上实现并行的效果，这里举个例子：
+
+```go
+func a() {
+	for i := 1; i < 10; i++ {
+		fmt.Println("A:", i)
+	}
+}
+
+func b() {
+	for i := 1; i < 10; i++ {
+		fmt.Println("B:", i)
+	}
+}
+
+func main() {
+	runtime.GOMAXPROCS(1)
+	go a()
+	go b()
+	time.Sleep(time.Second)
+}
+```
+
+两个任务只有一个逻辑核心，此时是做完一个任务再做另一个任务。 将逻辑核心数设为2，此时两个任务并行执行，代码如下。
+
+```go
+func a() {
+	for i := 1; i < 10; i++ {
+		fmt.Println("A:", i)
+	}
+}
+
+func b() {
+	for i := 1; i < 10; i++ {
+		fmt.Println("B:", i)
+	}
+}
+
+func main() {
+	runtime.GOMAXPROCS(2)
+	go a()
+	go b()
+	time.Sleep(time.Second)
+}
+```
+
+Go语言中的操作系统线程和goroutine的关系：
+
+1. 一个操作系统线程对应用户态多个goroutine。
+2. go程序可以同时使用多个操作系统线程。
+3. goroutine和OS线程是多对多的关系，即m:n。

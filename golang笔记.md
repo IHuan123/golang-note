@@ -4555,3 +4555,10 @@ func main() {
 `channel`常见的异常总结，如下图：![channel异常总结](https://www.liwenzhou.com/images/Go/concurrence/channel01.png)
 
 关闭已经关闭的`channel`也会引发`panic`。
+
+## worker pool（goroutine池）
+
+编写代码实现一个计算随机数的每个位置数字之和，要求使用`goroutine`和`channel`构建生产者和消费模式，可以指定启动的goroutine数量-`workder pool`模式。
+
+在工作中通常会使用`worderpool`模式，控制`goroutine`的数量，防止`goroutine`泄露和暴涨。
+

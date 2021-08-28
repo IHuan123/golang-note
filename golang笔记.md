@@ -4316,7 +4316,7 @@ Go语言的并发模型是`CSP（Communicating Sequential Processes）`，提倡
 
 Go 语言中的通道（channel）是一种特殊的类型。通道像一个传送带或者队列，总是遵循先入先出（First In First Out）的规则，保证收发数据的顺序。每一个通道都是一个具体类型的导管，也就是声明channel的时候需要为其指定元素类型。
 
-### channel类型
+## channel类型
 
 `channel`是一种类型，一种引用类型。声明通道类型的格式如下：
 
@@ -4332,7 +4332,7 @@ var ch2 chan bool  // 声明一个传递布尔型的通道
 var ch3 chan []int // 声明一个传递int切片的通道
 ```
 
-### 创建channel
+## 创建channel
 
 通道是引用类型，通道类型的空值是`nil`。
 
@@ -4405,7 +4405,7 @@ close(ch)
 3. 对一个关闭的并且没有值的通道执行接收操作会得到对应类型的零值。
 4. 关闭一个已经关闭的通道会导致panic。
 
-### 无缓冲的通道
+## 无缓冲的通道
 
 无缓冲的通道又称为阻塞的通道。我们来看一下下面的代码：
 
@@ -4452,7 +4452,7 @@ func main() {
 
 使用无缓冲通道进行通信将导致发送和接收的`goroutine`同步化。因此，无缓冲通道也被称为`同步通道`。
 
-### 有缓冲的通道
+## 有缓冲的通道
 
 解决上面问题的方法还有一种就是使用有缓冲区的通道。我们可以在使用make函数初始化通道的时候为其指定通道的容量，例如：
 
@@ -4468,7 +4468,7 @@ func main() {
 
 我们可以使用内置的`len`函数获取通道内元素的数量，使用`cap`函数获取通道的容量，虽然我们很少会这么做。
 
-### for range从通道循环取值
+## for range从通道循环取值
 
 当向通道中发送完数据时，我们可以通过`close`函数来关闭通道。
 
@@ -4508,7 +4508,7 @@ func main() {
 
 从上面的例子中我们看到有两种方式在接收值的时候判断该通道是否被关闭，不过我们通常使用的是`for range`的方式。使用`for range`遍历通道，当通道被关闭的时候就会退出`for range`。
 
-### 单向通道
+## 单向通道
 
 有的时候我们会将通道作为参数在多个任务函数间传递，很多时候我们在不同的任务函数中使用通道都会对其进行限制，比如限制通道在函数中只能发送或只能接收。
 
@@ -4550,7 +4550,7 @@ func main() {
 
 在函数传参及任何赋值操作中可以将双向通道转换为单向通道，但反过来是不可以的。
 
-### 通道总结
+## 通道总结
 
 `channel`常见的异常总结，如下图：![channel异常总结](https://www.liwenzhou.com/images/Go/concurrence/channel01.png)
 
@@ -4562,3 +4562,942 @@ func main() {
 
 在工作中通常会使用`worderpool`模式，控制`goroutine`的数量，防止`goroutine`泄露和暴涨。
 
+```go
+func worker(id int, jobs <-chan int, results chan<- int) {
+	for j := range jobs {
+		fmt.Printf("worker:%d start job:%d\n", id, j)
+		time.Sleep(time.Second)
+		fmt.Printf("worker:%d end job:%d\n", id, j)
+		results <- j * 2
+	}
+}
+
+
+func main() {
+	jobs := make(chan int, 100)
+	results := make(chan int, 100)
+	// 开启3个goroutine
+	for w := 1; w <= 3; w++ {
+		go worker(w, jobs, results)
+	}
+	// 5个任务
+	for j := 1; j <= 5; j++ {
+		jobs <- j
+	}
+	close(jobs)
+	// 输出结果
+	for a := 1; a <= 5; a++ {
+		<-results
+	}
+}
+```
+
+## select多路复用
+
+在某些场景下我们需要同时从多个通道接收数据。通道在接收数据时，如果没有数据可以接收将会发生阻塞。你也许会写出如下代码使用遍历的方式来实现：
+
+```go
+for{
+    // 尝试从ch1接收值
+    data, ok := <-ch1
+    // 尝试从ch2接收值
+    data, ok := <-ch2
+    …
+}
+```
+
+这种方式虽然可以实现从多个通道接收值的需求，但是运行性能会差很多。为了应对这种场景，Go内置了`select`关键字，可以同时响应多个通道的操作。
+
+`select`的使用类似于switch语句，它有一系列case分支和一个默认的分支。每个case会对应一个通道的通信（接收或发送）过程。`select`会一直等待，直到某个`case`的通信操作完成时，就会执行`case`分支对应的语句。具体格式如下：
+
+```go
+select{
+    case <-ch1:
+        ...
+    case data := <-ch2:
+        ...
+    case ch3<-data:
+        ...
+    default:
+        默认操作
+}
+```
+
+举个小例子来演示下`select`的使用：
+
+```go
+func main() {
+	ch := make(chan int, 1)
+	for i := 0; i < 10; i++ {
+		select {
+		case x := <-ch:
+			fmt.Println(x)
+		case ch <- i:
+		}
+	}
+}
+```
+
+使用`select`语句能提高代码的可读性。
+
+- 可处理一个或多个channel的发送/接收操作。
+- 如果多个`case`同时满足，`select`会随机选择一个。
+- 对于没有`case`的`select{}`会一直等待，可用于阻塞main函数。
+
+# 并发安全和锁
+
+有时候在Go代码中可能会存在多个`goroutine`同时操作一个资源（临界区），这种情况会发生`竞态问题`（数据竞态）。类比现实生活中的例子有十字路口被各个方向的的汽车竞争；还有火车上的卫生间被车厢里的人竞争。
+
+举个例子：
+
+```go
+var x int64
+var wg sync.WaitGroup
+
+func add() {
+	for i := 0; i < 5000; i++ {
+		x = x + 1
+	}
+	wg.Done()
+}
+func main() {
+	wg.Add(2)
+	go add()
+	go add()
+	wg.Wait()
+	fmt.Println(x)
+}
+```
+
+上面的代码中我们开启了两个`goroutine`去累加变量x的值，这两个`goroutine`在访问和修改`x`变量的时候就会存在数据竞争，导致最后的结果与期待的不符。
+
+## 互斥锁
+
+互斥锁是一种常用的控制共享资源访问的方法，它能够保证同时只有一个`goroutine`可以访问共享资源。Go语言中使用`sync`包的`Mutex`类型来实现互斥锁。 使用互斥锁来修复上面代码的问题：
+
+```go
+var x int64
+var wg sync.WaitGroup
+var lock sync.Mutex
+
+func add() {
+	for i := 0; i < 5000; i++ {
+		lock.Lock() // 加锁
+		x = x + 1
+		lock.Unlock() // 解锁
+	}
+	wg.Done()
+}
+func main() {
+	wg.Add(2)
+	go add()
+	go add()
+	wg.Wait()
+	fmt.Println(x)
+}
+```
+
+使用互斥锁能够保证同一时间有且只有一个`goroutine`进入临界区，其他的`goroutine`则在等待锁；当互斥锁释放后，等待的`goroutine`才可以获取锁进入临界区，多个`goroutine`同时等待一个锁时，唤醒的策略是随机的。
+
+## 读写互斥锁
+
+互斥锁是完全互斥的，但是有很多实际的场景下是读多写少的，当我们并发的去读取一个资源不涉及资源修改的时候是没有必要加锁的，这种场景下使用读写锁是更好的一种选择。读写锁在Go语言中使用`sync`包中的`RWMutex`类型。
+
+读写锁分为两种：读锁和写锁。当一个goroutine获取读锁之后，其他的`goroutine`如果是获取读锁会继续获得锁，如果是获取写锁就会等待；当一个`goroutine`获取写锁之后，其他的`goroutine`无论是获取读锁还是写锁都会等待。
+
+读写锁示例：
+
+```go
+var (
+	x      int64
+	wg     sync.WaitGroup
+	lock   sync.Mutex
+	rwlock sync.RWMutex
+)
+
+func write() {
+	// lock.Lock()   // 加互斥锁
+	rwlock.Lock() // 加写锁
+	x = x + 1
+	time.Sleep(10 * time.Millisecond) // 假设读操作耗时10毫秒
+	rwlock.Unlock()                   // 解写锁
+	// lock.Unlock()                     // 解互斥锁
+	wg.Done()
+}
+
+func read() {
+	// lock.Lock()                  // 加互斥锁
+	rwlock.RLock()               // 加读锁
+	time.Sleep(time.Millisecond) // 假设读操作耗时1毫秒
+	rwlock.RUnlock()             // 解读锁
+	// lock.Unlock()                // 解互斥锁
+	wg.Done()
+}
+
+func main() {
+	start := time.Now()
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go write()
+	}
+
+	for i := 0; i < 1000; i++ {
+		wg.Add(1)
+		go read()
+	}
+
+	wg.Wait()
+	end := time.Now()
+	fmt.Println(end.Sub(start))
+}
+```
+
+需要注意的是读写锁非常适合读多写少的场景，如果读和写的操作差别不大，读写锁的优势就发挥不出来。
+
+# sync.WaitGroup
+
+在代码中生硬的使用`time.Sleep`肯定是不合适的，Go语言中可以使用`sync.WaitGroup`来实现并发任务的同步。 `sync.WaitGroup`有以下几个方法：
+
+|             方法名              |        功能         |
+| :-----------------------------: | :-----------------: |
+| (wg * WaitGroup) Add(delta int) |    计数器+delta     |
+|     (wg *WaitGroup) Done()      |      计数器-1       |
+|     (wg *WaitGroup) Wait()      | 阻塞直到计数器变为0 |
+
+`sync.WaitGroup`内部维护着一个计数器，计数器的值可以增加和减少。例如当我们启动了N 个并发任务时，就将计数器值增加N。每个任务完成时通过调用Done()方法将计数器减1。通过调用Wait()来等待并发任务执行完，当计数器值为0时，表示所有并发任务已经完成。
+
+我们利用`sync.WaitGroup`将上面的代码优化一下：
+
+```go
+var wg sync.WaitGroup
+
+func hello() {
+	defer wg.Done()
+	fmt.Println("Hello Goroutine!")
+}
+func main() {
+	wg.Add(1)
+	go hello() // 启动另外一个goroutine去执行hello函数
+	fmt.Println("main goroutine done!")
+	wg.Wait()
+}
+```
+
+需要注意`sync.WaitGroup`是一个结构体，传递的时候要传递指针。
+
+# sync.Once
+
+说在前面的话：这是一个进阶知识点。
+
+在编程的很多场景下我们需要确保某些操作在高并发的场景下只执行一次，例如只加载一次配置文件、只关闭一次通道等。
+
+Go语言中的`sync`包中提供了一个针对只执行一次场景的解决方案–`sync.Once`。
+
+`sync.Once`只有一个`Do`方法，其签名如下：
+
+```go
+func (o *Once) Do(f func()) {}
+```
+
+*备注：如果要执行的函数`f`需要传递参数就需要搭配闭包来使用。*
+
+## 加载配置文件示例
+
+延迟一个开销很大的初始化操作到真正用到它的时候再执行是一个很好的实践。因为预先初始化一个变量（比如在init函数中完成初始化）会增加程序的启动耗时，而且有可能实际执行过程中这个变量没有用上，那么这个初始化操作就不是必须要做的。我们来看一个例子：
+
+```go
+var icons map[string]image.Image
+
+func loadIcons() {
+	icons = map[string]image.Image{
+		"left":  loadIcon("left.png"),
+		"up":    loadIcon("up.png"),
+		"right": loadIcon("right.png"),
+		"down":  loadIcon("down.png"),
+	}
+}
+
+// Icon 被多个goroutine调用时不是并发安全的
+func Icon(name string) image.Image {
+	if icons == nil {
+		loadIcons()
+	}
+	return icons[name]
+}
+```
+
+多个`goroutine`并发调用Icon函数时不是并发安全的，现代的编译器和CPU可能会在保证每个`goroutine`都满足串行一致的基础上自由地重排访问内存的顺序。loadIcons函数可能会被重排为以下结果：
+
+```go
+func loadIcons() {
+	icons = make(map[string]image.Image)
+	icons["left"] = loadIcon("left.png")
+	icons["up"] = loadIcon("up.png")
+	icons["right"] = loadIcon("right.png")
+	icons["down"] = loadIcon("down.png")
+}
+```
+
+在这种情况下就会出现即使判断了`icons`不是nil也不意味着变量初始化完成了。考虑到这种情况，我们能想到的办法就是添加互斥锁，保证初始化`icons`的时候不会被其他的`goroutine`操作，但是这样做又会引发性能问题。
+
+使用`sync.Once`改造的示例代码如下：
+
+```go
+var icons map[string]image.Image
+
+var loadIconsOnce sync.Once
+
+func loadIcons() {
+	icons = map[string]image.Image{
+		"left":  loadIcon("left.png"),
+		"up":    loadIcon("up.png"),
+		"right": loadIcon("right.png"),
+		"down":  loadIcon("down.png"),
+	}
+}
+
+// Icon 是并发安全的
+func Icon(name string) image.Image {
+	loadIconsOnce.Do(loadIcons)
+	return icons[name]
+}
+```
+
+## 并发安全的单例模式
+
+下面是借助`sync.Once`实现的并发安全的单例模式：
+
+```go
+package singleton
+
+import (
+    "sync"
+)
+
+type singleton struct {}
+
+var instance *singleton
+var once sync.Once
+
+func GetInstance() *singleton {
+    once.Do(func() {
+        instance = &singleton{}
+    })
+    return instance
+}
+```
+
+`sync.Once`其实内部包含一个互斥锁和一个布尔值，互斥锁保证布尔值和数据的安全，而布尔值用来记录初始化是否完成。这样设计就能保证初始化操作的时候是并发安全的并且初始化操作也不会被执行多次。
+
+# sync.Map
+
+Go语言中内置的map不是并发安全的。请看下面的示例：
+
+```go
+var m = make(map[string]int)
+
+func get(key string) int {
+	return m[key]
+}
+
+func set(key string, value int) {
+	m[key] = value
+}
+
+func main() {
+	wg := sync.WaitGroup{}
+	for i := 0; i < 20; i++ {
+		wg.Add(1)
+		go func(n int) {
+			key := strconv.Itoa(n)
+			set(key, n)
+			fmt.Printf("k=:%v,v:=%v\n", key, get(key))
+			wg.Done()
+		}(i)
+	}
+	wg.Wait()
+}
+```
+
+上面的代码开启少量几个`goroutine`的时候可能没什么问题，当并发多了之后执行上面的代码就会报`fatal error: concurrent map writes`错误。
+
+像这种场景下就需要为map加锁来保证并发的安全性了，Go语言的`sync`包中提供了一个开箱即用的并发安全版map–`sync.Map`。开箱即用表示不用像内置的map一样使用make函数初始化就能直接使用。同时`sync.Map`内置了诸如`Store`、`Load`、`LoadOrStore`、`Delete`、`Range`等操作方法。
+
+```go
+var m = sync.Map{}
+
+func main() {
+	wg := sync.WaitGroup{}
+	for i := 0; i < 20; i++ {
+		wg.Add(1)
+		go func(n int) {
+			key := strconv.Itoa(n)
+			m.Store(key, n)
+			value, _ := m.Load(key)
+			fmt.Printf("k=:%v,v:=%v\n", key, value)
+			wg.Done()
+		}(i)
+	}
+	wg.Wait()
+}
+```
+
+# 原子操作
+
+在上面的代码中的我们通过锁操作来实现同步。而锁机制的底层是基于原子操作的，其一般直接通过CPU指令实现。Go语言中原子操作由内置的标准库`sync/atomic`提供。
+
+### atomic包
+
+|                             方法                             |      解释      |
+| :----------------------------------------------------------: | :------------: |
+| func LoadInt32(addr *int32) (val int32) func LoadInt64(addr *int64) (val int64) func LoadUint32(addr *uint32) (val uint32) func LoadUint64(addr *uint64) (val uint64) func LoadUintptr(addr *uintptr) (val uintptr) func LoadPointer(addr *unsafe.Pointer) (val unsafe.Pointer) |    读取操作    |
+| func StoreInt32(addr *int32, val int32) func StoreInt64(addr *int64, val int64) func StoreUint32(addr *uint32, val uint32) func StoreUint64(addr *uint64, val uint64) func StoreUintptr(addr *uintptr, val uintptr) func StorePointer(addr *unsafe.Pointer, val unsafe.Pointer) |    写入操作    |
+| func AddInt32(addr *int32, delta int32) (new int32) func AddInt64(addr *int64, delta int64) (new int64) func AddUint32(addr *uint32, delta uint32) (new uint32) func AddUint64(addr *uint64, delta uint64) (new uint64) func AddUintptr(addr *uintptr, delta uintptr) (new uintptr) |    修改操作    |
+| func SwapInt32(addr *int32, new int32) (old int32) func SwapInt64(addr *int64, new int64) (old int64) func SwapUint32(addr *uint32, new uint32) (old uint32) func SwapUint64(addr *uint64, new uint64) (old uint64) func SwapUintptr(addr *uintptr, new uintptr) (old uintptr) func SwapPointer(addr *unsafe.Pointer, new unsafe.Pointer) (old unsafe.Pointer) |    交换操作    |
+| func CompareAndSwapInt32(addr *int32, old, new int32) (swapped bool) func CompareAndSwapInt64(addr *int64, old, new int64) (swapped bool) func CompareAndSwapUint32(addr *uint32, old, new uint32) (swapped bool) func CompareAndSwapUint64(addr *uint64, old, new uint64) (swapped bool) func CompareAndSwapUintptr(addr *uintptr, old, new uintptr) (swapped bool) func CompareAndSwapPointer(addr *unsafe.Pointer, old, new unsafe.Pointer) (swapped bool) | 比较并交换操作 |
+
+### 示例
+
+我们填写一个示例来比较下互斥锁和原子操作的性能。
+
+```go
+package main
+
+import (
+	"fmt"
+	"sync"
+	"sync/atomic"
+	"time"
+)
+
+type Counter interface {
+	Inc()
+	Load() int64
+}
+
+// 普通版
+type CommonCounter struct {
+	counter int64
+}
+
+func (c CommonCounter) Inc() {
+	c.counter++
+}
+
+func (c CommonCounter) Load() int64 {
+	return c.counter
+}
+
+// 互斥锁版
+type MutexCounter struct {
+	counter int64
+	lock    sync.Mutex
+}
+
+func (m *MutexCounter) Inc() {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	m.counter++
+}
+
+func (m *MutexCounter) Load() int64 {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	return m.counter
+}
+
+// 原子操作版
+type AtomicCounter struct {
+	counter int64
+}
+
+func (a *AtomicCounter) Inc() {
+	atomic.AddInt64(&a.counter, 1)
+}
+
+func (a *AtomicCounter) Load() int64 {
+	return atomic.LoadInt64(&a.counter)
+}
+
+func test(c Counter) {
+	var wg sync.WaitGroup
+	start := time.Now()
+	for i := 0; i < 1000; i++ {
+		wg.Add(1)
+		go func() {
+			c.Inc()
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+	end := time.Now()
+	fmt.Println(c.Load(), end.Sub(start))
+}
+
+func main() {
+	c1 := CommonCounter{} // 非并发安全
+	test(c1)
+	c2 := MutexCounter{} // 使用互斥锁实现并发安全
+	test(&c2)
+	c3 := AtomicCounter{} // 并发安全且比互斥锁效率更高
+	test(&c3)
+}
+```
+
+`atomic`包提供了底层的原子级内存操作，对于同步算法的实现很有用。这些函数必须谨慎地保证正确使用。除了某些特殊的底层应用，使用通道或者sync包的函数/类型实现同步更好。
+
+
+
+# 互联网协议介绍
+
+互联网的核心是一系列协议，总称为”互联网协议”（Internet Protocol Suite），正是这一些协议规定了电脑如何连接和组网。我们理解了这些协议，就理解了互联网的原理。由于这些协议太过庞大和复杂，没有办法在这里一概而全，只能介绍一下我们日常开发中接触较多的几个协议。
+
+## 互联网分层模型
+
+互联网的逻辑实现被分为好几层。每一层都有自己的功能，就像建筑物一样，每一层都靠下一层支持。用户接触到的只是最上面的那一层，根本不会感觉到下面的几层。要理解互联网就需要自下而上理解每一层的实现的功能。![osi七层模型](https://www.liwenzhou.com/images/Go/socket/osi.png)如上图所示，互联网按照不同的模型划分会有不用的分层，但是不论按照什么模型去划分，越往上的层越靠近用户，越往下的层越靠近硬件。在软件开发中我们使用最多的是上图中将互联网划分为五个分层的模型。
+
+接下来我们一层一层的自底向上介绍一下每一层。
+
+### 物理层
+
+我们的电脑要与外界互联网通信，需要先把电脑连接网络，我们可以用双绞线、光纤、无线电波等方式。这就叫做”实物理层”，它就是把电脑连接起来的物理手段。它主要规定了网络的一些电气特性，作用是负责传送0和1的电信号。
+
+### 数据链路层
+
+单纯的0和1没有任何意义，所以我们使用者会为其赋予一些特定的含义，规定解读电信号的方式：例如：多少个电信号算一组？每个信号位有何意义？这就是”数据链接层”的功能，它在”物理层”的上方，确定了物理层传输的0和1的分组方式及代表的意义。早期的时候，每家公司都有自己的电信号分组方式。逐渐地，一种叫做”以太网”（Ethernet）的协议，占据了主导地位。
+
+以太网规定，一组电信号构成一个数据包，叫做”帧”（Frame）。每一帧分成两个部分：标头（Head）和数据（Data）。其中”标头”包含数据包的一些说明项，比如发送者、接受者、数据类型等等；”数据”则是数据包的具体内容。”标头”的长度，固定为18字节。”数据”的长度，最短为46字节，最长为1500字节。因此，整个”帧”最短为64字节，最长为1518字节。如果数据很长，就必须分割成多个帧进行发送。
+
+那么，发送者和接受者是如何标识呢？以太网规定，连入网络的所有设备都必须具有”网卡”接口。数据包必须是从一块网卡，传送到另一块网卡。网卡的地址，就是数据包的发送地址和接收地址，这叫做MAC地址。每块网卡出厂的时候，都有一个全世界独一无二的MAC地址，长度是48个二进制位，通常用12个十六进制数表示。前6个十六进制数是厂商编号，后6个是该厂商的网卡流水号。有了MAC地址，就可以定位网卡和数据包的路径了。
+
+我们会通过ARP协议来获取接受方的MAC地址，有了MAC地址之后，如何把数据准确的发送给接收方呢？其实这里以太网采用了一种很”原始”的方式，它不是把数据包准确送到接收方，而是向本网络内所有计算机都发送，让每台计算机读取这个包的”标头”，找到接收方的MAC地址，然后与自身的MAC地址相比较，如果两者相同，就接受这个包，做进一步处理，否则就丢弃这个包。这种发送方式就叫做”广播”（broadcasting）。
+
+### 网络层
+
+按照以太网协议的规则我们可以依靠MAC地址来向外发送数据。理论上依靠MAC地址，你电脑的网卡就可以找到身在世界另一个角落的某台电脑的网卡了，但是这种做法有一个重大缺陷就是以太网采用广播方式发送数据包，所有成员人手一”包”，不仅效率低，而且发送的数据只能局限在发送者所在的子网络。也就是说如果两台计算机不在同一个子网络，广播是传不过去的。这种设计是合理且必要的，因为如果互联网上每一台计算机都会收到互联网上收发的所有数据包，那是不现实的。
+
+因此，必须找到一种方法区分哪些MAC地址属于同一个子网络，哪些不是。如果是同一个子网络，就采用广播方式发送，否则就采用”路由”方式发送。这就导致了”网络层”的诞生。它的作用是引进一套新的地址，使得我们能够区分不同的计算机是否属于同一个子网络。这套地址就叫做”网络地址”，简称”网址”。
+
+“网络层”出现以后，每台计算机有了两种地址，一种是MAC地址，另一种是网络地址。两种地址之间没有任何联系，MAC地址是绑定在网卡上的，网络地址则是网络管理员分配的。网络地址帮助我们确定计算机所在的子网络，MAC地址则将数据包送到该子网络中的目标网卡。因此，从逻辑上可以推断，必定是先处理网络地址，然后再处理MAC地址。
+
+规定网络地址的协议，叫做IP协议。它所定义的地址，就被称为IP地址。目前，广泛采用的是IP协议第四版，简称IPv4。IPv4这个版本规定，网络地址由32个二进制位组成，我们通常习惯用分成四段的十进制数表示IP地址，从0.0.0.0一直到255.255.255.255。
+
+根据IP协议发送的数据，就叫做IP数据包。IP数据包也分为”标头”和”数据”两个部分：”标头”部分主要包括版本、长度、IP地址等信息，”数据”部分则是IP数据包的具体内容。IP数据包的”标头”部分的长度为20到60字节，整个数据包的总长度最大为65535字节。
+
+### 传输层
+
+有了MAC地址和IP地址，我们已经可以在互联网上任意两台主机上建立通信。但问题是同一台主机上会有许多程序都需要用网络收发数据，比如QQ和浏览器这两个程序都需要连接互联网并收发数据，我们如何区分某个数据包到底是归哪个程序的呢？也就是说，我们还需要一个参数，表示这个数据包到底供哪个程序（进程）使用。这个参数就叫做”端口”（port），它其实是每一个使用网卡的程序的编号。每个数据包都发到主机的特定端口，所以不同的程序就能取到自己所需要的数据。
+
+“端口”是0到65535之间的一个整数，正好16个二进制位。0到1023的端口被系统占用，用户只能选用大于1023的端口。有了IP和端口我们就能实现唯一确定互联网上一个程序，进而实现网络间的程序通信。
+
+我们必须在数据包中加入端口信息，这就需要新的协议。最简单的实现叫做UDP协议，它的格式几乎就是在数据前面，加上端口号。UDP数据包，也是由”标头”和”数据”两部分组成：”标头”部分主要定义了发出端口和接收端口，”数据”部分就是具体的内容。UDP数据包非常简单，”标头”部分一共只有8个字节，总长度不超过65,535字节，正好放进一个IP数据包。
+
+UDP协议的优点是比较简单，容易实现，但是缺点是可靠性较差，一旦数据包发出，无法知道对方是否收到。为了解决这个问题，提高网络可靠性，TCP协议就诞生了。TCP协议能够确保数据不会遗失。它的缺点是过程复杂、实现困难、消耗较多的资源。TCP数据包没有长度限制，理论上可以无限长，但是为了保证网络的效率，通常TCP数据包的长度不会超过IP数据包的长度，以确保单个TCP数据包不必再分割。
+
+### 应用层
+
+应用程序收到”传输层”的数据，接下来就要对数据进行解包。由于互联网是开放架构，数据来源五花八门，必须事先规定好通信的数据格式，否则接收方根本无法获得真正发送的数据内容。”应用层”的作用就是规定应用程序使用的数据格式，例如我们TCP协议之上常见的Email、HTTP、FTP等协议，这些协议就组成了互联网协议的应用层。
+
+如下图所示，发送方的HTTP数据经过互联网的传输过程中会依次添加各层协议的标头信息，接收方收到数据包之后再依次根据协议解包得到数据。
+
+![HTTP数据传输图解](https://www.liwenzhou.com/images/Go/socket/httptcpip.png)
+
+# socket编程
+
+Socket是BSD UNIX的进程通信机制，通常也称作”套接字”，用于描述IP地址和端口，是一个通信链的句柄。Socket可以理解为TCP/IP网络的API，它定义了许多函数或例程，程序员可以用它们来开发TCP/IP网络上的应用程序。电脑上运行的应用程序通常通过”套接字”向网络发出请求或者应答网络请求。
+
+## socket图解
+
+`Socket`是应用层与TCP/IP协议族通信的中间软件抽象层。在设计模式中，`Socket`其实就是一个门面模式，它把复杂的TCP/IP协议族隐藏在`Socket`后面，对用户来说只需要调用Socket规定的相关函数，让`Socket`去组织符合指定的协议数据然后进行通信。
+
+![socket图解](https://www.liwenzhou.com/images/Go/socket/socket.png)
+
+## Go语言实现TCP通信
+
+### TCP协议
+
+TCP/IP(Transmission Control Protocol/Internet Protocol) 即传输控制协议/网间协议，是一种面向连接（连接导向）的、可靠的、基于字节流的传输层（Transport layer）通信协议，因为是面向连接的协议，数据像水流一样传输，会存在黏包问题。
+
+### TCP服务端
+
+一个TCP服务端可以同时连接很多个客户端，例如世界各地的用户使用自己电脑上的浏览器访问淘宝网。因为Go语言中创建多个goroutine实现并发非常方便和高效，所以我们可以每建立一次链接就创建一个goroutine去处理。
+
+TCP服务端程序的处理流程：
+
+1. 监听端口
+2. 接收客户端请求建立链接
+3. 创建goroutine处理链接。
+
+我们使用Go语言的net包实现的TCP服务端代码如下：
+
+```go
+// tcp/server/main.go
+
+// TCP server端
+
+// 处理函数
+func process(conn net.Conn) {
+	defer conn.Close() // 关闭连接
+	for {
+		reader := bufio.NewReader(conn)
+		var buf [128]byte
+		n, err := reader.Read(buf[:]) // 读取数据
+		if err != nil {
+			fmt.Println("read from client failed, err:", err)
+			break
+		}
+		recvStr := string(buf[:n])
+		fmt.Println("收到client端发来的数据：", recvStr)
+		conn.Write([]byte(recvStr)) // 发送数据
+	}
+}
+
+func main() {
+	listen, err := net.Listen("tcp", "127.0.0.1:20000")
+	if err != nil {
+		fmt.Println("listen failed, err:", err)
+		return
+	}
+	for {
+		conn, err := listen.Accept() // 建立连接
+		if err != nil {
+			fmt.Println("accept failed, err:", err)
+			continue
+		}
+		go process(conn) // 启动一个goroutine处理连接
+	}
+}
+```
+
+将上面的代码保存之后编译成`server`或`server.exe`可执行文件。
+
+### TCP客户端
+
+一个TCP客户端进行TCP通信的流程如下：
+
+1. 建立与服务端的链接
+2. 进行数据收发
+3. 关闭链接
+
+使用Go语言的net包实现的TCP客户端代码如下：
+
+```go
+// tcp/client/main.go
+
+// 客户端
+func main() {
+	conn, err := net.Dial("tcp", "127.0.0.1:20000")
+	if err != nil {
+		fmt.Println("err :", err)
+		return
+	}
+	defer conn.Close() // 关闭连接
+	inputReader := bufio.NewReader(os.Stdin)
+	for {
+		input, _ := inputReader.ReadString('\n') // 读取用户输入
+		inputInfo := strings.Trim(input, "\r\n")
+		if strings.ToUpper(inputInfo) == "Q" { // 如果输入q就退出
+			return
+		}
+		_, err = conn.Write([]byte(inputInfo)) // 发送数据
+		if err != nil {
+			return
+		}
+		buf := [512]byte{}
+		n, err := conn.Read(buf[:])
+		if err != nil {
+			fmt.Println("recv failed, err:", err)
+			return
+		}
+		fmt.Println(string(buf[:n]))
+	}
+}
+```
+
+将上面的代码编译成`client`或`client.exe`可执行文件，先启动server端再启动client端，在client端输入任意内容回车之后就能够在server端看到client端发送的数据，从而实现TCP通信。
+
+## TCP黏包
+
+### 黏包示例
+
+服务端代码如下：
+
+```go
+// socket_stick/server/main.go
+
+func process(conn net.Conn) {
+	defer conn.Close()
+	reader := bufio.NewReader(conn)
+	var buf [1024]byte
+	for {
+		n, err := reader.Read(buf[:])
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			fmt.Println("read from client failed, err:", err)
+			break
+		}
+		recvStr := string(buf[:n])
+		fmt.Println("收到client发来的数据：", recvStr)
+	}
+}
+
+func main() {
+
+	listen, err := net.Listen("tcp", "127.0.0.1:30000")
+	if err != nil {
+		fmt.Println("listen failed, err:", err)
+		return
+	}
+	defer listen.Close()
+	for {
+		conn, err := listen.Accept()
+		if err != nil {
+			fmt.Println("accept failed, err:", err)
+			continue
+		}
+		go process(conn)
+	}
+}
+```
+
+客户端代码如下：
+
+```go
+// socket_stick/client/main.go
+
+func main() {
+	conn, err := net.Dial("tcp", "127.0.0.1:30000")
+	if err != nil {
+		fmt.Println("dial failed, err", err)
+		return
+	}
+	defer conn.Close()
+	for i := 0; i < 20; i++ {
+		msg := `Hello, Hello. How are you?`
+		conn.Write([]byte(msg))
+	}
+}
+```
+
+将上面的代码保存后，分别编译。先启动服务端再启动客户端，可以看到服务端输出结果如下：
+
+```bash
+收到client发来的数据： Hello, Hello. How are you?Hello, Hello. How are you?Hello, Hello. How are you?Hello, Hello. How are you?Hello, Hello. How are you?
+收到client发来的数据： Hello, Hello. How are you?Hello, Hello. How are you?Hello, Hello. How are you?Hello, Hello. How are you?Hello, Hello. How are you?Hello, Hello. How are you?Hello, Hello. How are you?Hello, Hello. How are you?
+收到client发来的数据： Hello, Hello. How are you?Hello, Hello. How are you?
+收到client发来的数据： Hello, Hello. How are you?Hello, Hello. How are you?Hello, Hello. How are you?
+收到client发来的数据： Hello, Hello. How are you?Hello, Hello. How are you?
+```
+
+客户端分10次发送的数据，在服务端并没有成功的输出10次，而是多条数据“粘”到了一起。
+
+### 为什么会出现粘包
+
+主要原因就是tcp数据传递模式是流模式，在保持长连接的时候可以进行多次的收和发。
+
+“粘包”可发生在发送端也可发生在接收端：
+
+1. 由Nagle算法造成的发送端的粘包：Nagle算法是一种改善网络传输效率的算法。简单来说就是当我们提交一段数据给TCP发送时，TCP并不立刻发送此段数据，而是等待一小段时间看看在等待期间是否还有要发送的数据，若有则会一次把这两段数据发送出去。
+2. 接收端接收不及时造成的接收端粘包：TCP会把接收到的数据存在自己的缓冲区中，然后通知应用层取数据。当应用层由于某些原因不能及时的把TCP的数据取出来，就会造成TCP缓冲区中存放了几段数据。
+
+### 解决办法
+
+出现”粘包”的关键在于接收方不确定将要传输的数据包的大小，因此我们可以对数据包进行封包和拆包的操作。
+
+封包：封包就是给一段数据加上包头，这样一来数据包就分为包头和包体两部分内容了(过滤非法包时封包会加入”包尾”内容)。包头部分的长度是固定的，并且它存储了包体的长度，根据包头长度固定以及包头中含有包体长度的变量就能正确的拆分出一个完整的数据包。
+
+我们可以自己定义一个协议，比如数据包的前4个字节为包头，里面存储的是发送的数据的长度。
+
+```go
+// socket_stick/proto/proto.go
+package proto
+
+import (
+	"bufio"
+	"bytes"
+	"encoding/binary"
+)
+
+// Encode 将消息编码
+func Encode(message string) ([]byte, error) {
+	// 读取消息的长度，转换成int32类型（占4个字节）
+	var length = int32(len(message))
+	var pkg = new(bytes.Buffer)
+	// 写入消息头
+	err := binary.Write(pkg, binary.LittleEndian, length)
+	if err != nil {
+		return nil, err
+	}
+	// 写入消息实体
+	err = binary.Write(pkg, binary.LittleEndian, []byte(message))
+	if err != nil {
+		return nil, err
+	}
+	return pkg.Bytes(), nil
+}
+
+// Decode 解码消息
+func Decode(reader *bufio.Reader) (string, error) {
+	// 读取消息的长度
+	lengthByte, _ := reader.Peek(4) // 读取前4个字节的数据
+	lengthBuff := bytes.NewBuffer(lengthByte)
+	var length int32
+	err := binary.Read(lengthBuff, binary.LittleEndian, &length)
+	if err != nil {
+		return "", err
+	}
+	// Buffered返回缓冲中现有的可读取的字节数。
+	if int32(reader.Buffered()) < length+4 {
+		return "", err
+	}
+
+	// 读取真正的消息数据
+	pack := make([]byte, int(4+length))
+	_, err = reader.Read(pack)
+	if err != nil {
+		return "", err
+	}
+	return string(pack[4:]), nil
+}
+```
+
+接下来在服务端和客户端分别使用上面定义的`proto`包的`Decode`和`Encode`函数处理数据。
+
+服务端代码如下：
+
+```go
+// socket_stick/server2/main.go
+
+func process(conn net.Conn) {
+	defer conn.Close()
+	reader := bufio.NewReader(conn)
+	for {
+		msg, err := proto.Decode(reader)
+		if err == io.EOF {
+			return
+		}
+		if err != nil {
+			fmt.Println("decode msg failed, err:", err)
+			return
+		}
+		fmt.Println("收到client发来的数据：", msg)
+	}
+}
+
+func main() {
+
+	listen, err := net.Listen("tcp", "127.0.0.1:30000")
+	if err != nil {
+		fmt.Println("listen failed, err:", err)
+		return
+	}
+	defer listen.Close()
+	for {
+		conn, err := listen.Accept()
+		if err != nil {
+			fmt.Println("accept failed, err:", err)
+			continue
+		}
+		go process(conn)
+	}
+}
+```
+
+客户端代码如下：
+
+```go
+// socket_stick/client2/main.go
+
+func main() {
+	conn, err := net.Dial("tcp", "127.0.0.1:30000")
+	if err != nil {
+		fmt.Println("dial failed, err", err)
+		return
+	}
+	defer conn.Close()
+	for i := 0; i < 20; i++ {
+		msg := `Hello, Hello. How are you?`
+		data, err := proto.Encode(msg)
+		if err != nil {
+			fmt.Println("encode msg failed, err:", err)
+			return
+		}
+		conn.Write(data)
+	}
+}
+```
+
+## Go语言实现UDP通信
+
+### UDP协议
+
+UDP协议（User Datagram Protocol）中文名称是用户数据报协议，是OSI（Open System Interconnection，开放式系统互联）参考模型中一种**无连接**的传输层协议，不需要建立连接就能直接进行数据发送和接收，属于不可靠的、没有时序的通信，但是UDP协议的实时性比较好，通常用于视频直播相关领域。
+
+### UDP服务端
+
+使用Go语言的`net`包实现的UDP服务端代码如下：
+
+```go
+// UDP/server/main.go
+
+// UDP server端
+func main() {
+	listen, err := net.ListenUDP("udp", &net.UDPAddr{
+		IP:   net.IPv4(0, 0, 0, 0),
+		Port: 30000,
+	})
+	if err != nil {
+		fmt.Println("listen failed, err:", err)
+		return
+	}
+	defer listen.Close()
+	for {
+		var data [1024]byte
+		n, addr, err := listen.ReadFromUDP(data[:]) // 接收数据
+		if err != nil {
+			fmt.Println("read udp failed, err:", err)
+			continue
+		}
+		fmt.Printf("data:%v addr:%v count:%v\n", string(data[:n]), addr, n)
+		_, err = listen.WriteToUDP(data[:n], addr) // 发送数据
+		if err != nil {
+			fmt.Println("write to udp failed, err:", err)
+			continue
+		}
+	}
+}
+```
+
+### UDP客户端
+
+使用Go语言的`net`包实现的UDP客户端代码如下：
+
+```go
+// UDP 客户端
+func main() {
+	socket, err := net.DialUDP("udp", nil, &net.UDPAddr{
+		IP:   net.IPv4(0, 0, 0, 0),
+		Port: 30000,
+	})
+	if err != nil {
+		fmt.Println("连接服务端失败，err:", err)
+		return
+	}
+	defer socket.Close()
+	sendData := []byte("Hello server")
+	_, err = socket.Write(sendData) // 发送数据
+	if err != nil {
+		fmt.Println("发送数据失败，err:", err)
+		return
+	}
+	data := make([]byte, 4096)
+	n, remoteAddr, err := socket.ReadFromUDP(data) // 接收数据
+	if err != nil {
+		fmt.Println("接收数据失败，err:", err)
+		return
+	}
+	fmt.Printf("recv:%v addr:%v count:%v\n", string(data[:n]), remoteAddr, n)
+}
+```

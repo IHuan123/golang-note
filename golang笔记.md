@@ -6582,3 +6582,1068 @@ func ExampleSplit() {
    ```
 
 3. 示例函数提供了可以直接运行的示例代码，可以直接在`golang.org`的`godoc`文档服务器上使用`Go Playground`运行示例代码。下图为`strings.ToUpper`函数在Playground的示例函数效果。![Go Playground](https://www.liwenzhou.com/images/Go/unit_test/example.png)
+
+# Go语言标准库flag基本使用
+
+2017年6月19日
+
+ 
+
+| [Golang](https://www.liwenzhou.com/categories/Golang)
+
+ 
+
+本文总阅读量次
+
+
+
+Go语言内置的`flag`包实现了命令行参数的解析，`flag`包使得开发命令行工具更为简单。
+
+# os.Args
+
+如果你只是简单的想要获取命令行参数，可以像下面的代码示例一样使用`os.Args`来获取命令行参数。
+
+```go
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+//os.Args demo
+func main() {
+	//os.Args是一个[]string
+	if len(os.Args) > 0 {
+		for index, arg := range os.Args {
+			fmt.Printf("args[%d]=%v\n", index, arg)
+		}
+	}
+}
+```
+
+将上面的代码执行`go build -o "args_demo"`编译之后，执行：
+
+```bash
+$ ./args_demo a b c d
+args[0]=./args_demo
+args[1]=a
+args[2]=b
+args[3]=c
+args[4]=d
+```
+
+`os.Args`是一个存储命令行参数的字符串切片，它的第一个元素是执行文件的名称。
+
+# flag包基本使用
+
+本文介绍了flag包的常用函数和基本用法，更详细的内容请查看[官方文档](https://studygolang.com/pkgdoc)。
+
+## 导入flag包
+
+```go
+import flag
+```
+
+## flag参数类型
+
+flag包支持的命令行参数类型有`bool`、`int`、`int64`、`uint`、`uint64`、`float` `float64`、`string`、`duration`。
+
+|   flag参数   |                            有效值                            |
+| :----------: | :----------------------------------------------------------: |
+|  字符串flag  |                          合法字符串                          |
+|   整数flag   |           1234、0664、0x1234等类型，也可以是负数。           |
+|  浮点数flag  |                          合法浮点数                          |
+| bool类型flag |  1, 0, t, f, T, F, true, false, TRUE, FALSE, True, False。   |
+|  时间段flag  | 任何合法的时间段字符串。如”300ms”、”-1.5h”、”2h45m”。 合法的单位有”ns”、”us” /“µs”、”ms”、”s”、”m”、”h”。 |
+
+## 定义命令行flag参数
+
+有以下两种常用的定义命令行`flag`参数的方法。
+
+### flag.Type()
+
+基本格式如下：
+
+`flag.Type(flag名, 默认值, 帮助信息)*Type` 例如我们要定义姓名、年龄、婚否三个命令行参数，我们可以按如下方式定义：
+
+```go
+name := flag.String("name", "张三", "姓名")
+age := flag.Int("age", 18, "年龄")
+married := flag.Bool("married", false, "婚否")
+delay := flag.Duration("d", 0, "时间间隔")
+```
+
+需要注意的是，此时`name`、`age`、`married`、`delay`均为对应类型的指针。
+
+### flag.TypeVar()
+
+基本格式如下： `flag.TypeVar(Type指针, flag名, 默认值, 帮助信息)` 例如我们要定义姓名、年龄、婚否三个命令行参数，我们可以按如下方式定义：
+
+```go
+var name string
+var age int
+var married bool
+var delay time.Duration
+flag.StringVar(&name, "name", "张三", "姓名")
+flag.IntVar(&age, "age", 18, "年龄")
+flag.BoolVar(&married, "married", false, "婚否")
+flag.DurationVar(&delay, "d", 0, "时间间隔")
+```
+
+## flag.Parse()
+
+通过以上两种方法定义好命令行flag参数后，需要通过调用`flag.Parse()`来对命令行参数进行解析。
+
+支持的命令行参数格式有以下几种：
+
+- `-flag xxx` （使用空格，一个`-`符号）
+- `--flag xxx` （使用空格，两个`-`符号）
+- `-flag=xxx` （使用等号，一个`-`符号）
+- `--flag=xxx` （使用等号，两个`-`符号）
+
+其中，布尔类型的参数必须使用等号的方式指定。
+
+Flag解析在第一个非flag参数（单个”-“不是flag参数）之前停止，或者在终止符”–“之后停止。
+
+## flag其他函数
+
+```go
+flag.Args()  ////返回命令行参数后的其他参数，以[]string类型
+flag.NArg()  //返回命令行参数后的其他参数个数
+flag.NFlag() //返回使用的命令行参数个数
+```
+
+## 完整示例
+
+### 定义
+
+```go
+func main() {
+	//定义命令行参数方式1
+	var name string
+	var age int
+	var married bool
+	var delay time.Duration
+	flag.StringVar(&name, "name", "张三", "姓名")
+	flag.IntVar(&age, "age", 18, "年龄")
+	flag.BoolVar(&married, "married", false, "婚否")
+	flag.DurationVar(&delay, "d", 0, "延迟的时间间隔")
+
+	//解析命令行参数
+	flag.Parse()
+	fmt.Println(name, age, married, delay)
+	//返回命令行参数后的其他参数
+	fmt.Println(flag.Args())
+	//返回命令行参数后的其他参数个数
+	fmt.Println(flag.NArg())
+	//返回使用的命令行参数个数
+	fmt.Println(flag.NFlag())
+}
+```
+
+### 使用
+
+命令行参数使用提示：
+
+```bash
+$ ./flag_demo -help
+Usage of ./flag_demo:
+  -age int
+        年龄 (default 18)
+  -d duration
+        时间间隔
+  -married
+        婚否
+  -name string
+        姓名 (default "张三")
+```
+
+正常使用命令行flag参数：
+
+```bash
+$ ./flag_demo -name 沙河娜扎 --age 28 -married=false -d=1h30m
+沙河娜扎 28 false 1h30m0s
+[]
+0
+4
+```
+
+使用非flag命令行参数：
+
+```bash
+$ ./flag_demo a b c
+张三 18 false 0s
+[a b c]
+3
+0
+```
+
+# Go性能调优
+
+2018年9月22日
+
+ 
+
+| [Golang](https://www.liwenzhou.com/categories/Golang)
+
+ 
+
+本文总阅读量9349次
+
+
+
+在计算机性能调试领域里，profiling 是指对应用程序的画像，画像就是应用程序使用 CPU 和内存的情况。 Go语言是一个对性能特别看重的语言，因此语言中自带了 profiling 的库，这篇文章就要讲解怎么在 golang 中做 profiling。
+
+# Go性能优化
+
+Go语言项目中的性能优化主要有以下几个方面：
+
+- CPU profile：报告程序的 CPU 使用情况，按照一定频率去采集应用程序在 CPU 和寄存器上面的数据
+- Memory Profile（Heap Profile）：报告程序的内存使用情况
+- Block Profiling：报告 goroutines 不在运行状态的情况，可以用来分析和查找死锁等性能瓶颈
+- Goroutine Profiling：报告 goroutines 的使用情况，有哪些 goroutine，它们的调用关系是怎样的
+
+## 采集性能数据
+
+Go语言内置了获取程序的运行数据的工具，包括以下两个标准库：
+
+- `runtime/pprof`：采集工具型应用运行数据进行分析
+- `net/http/pprof`：采集服务型应用运行时数据进行分析
+
+pprof开启后，每隔一段时间（10ms）就会收集下当前的堆栈信息，获取各个函数占用的CPU以及内存资源；最后通过对这些采样数据进行分析，形成一个性能分析报告。
+
+注意，我们只应该在性能测试的时候才在代码中引入pprof。
+
+## 工具型应用
+
+如果你的应用程序是运行一段时间就结束退出类型。那么最好的办法是在应用退出的时候把 profiling 的报告保存到文件中，进行分析。对于这种情况，可以使用`runtime/pprof`库。 首先在代码中导入`runtime/pprof`工具：
+
+```go
+import "runtime/pprof"
+```
+
+### CPU性能分析
+
+开启CPU性能分析：
+
+```go
+pprof.StartCPUProfile(w io.Writer)
+```
+
+停止CPU性能分析：
+
+```go
+pprof.StopCPUProfile()
+```
+
+应用执行结束后，就会生成一个文件，保存了我们的 CPU profiling 数据。得到采样数据之后，使用`go tool pprof`工具进行CPU性能分析。
+
+### 内存性能优化
+
+记录程序的堆栈信息
+
+```go
+pprof.WriteHeapProfile(w io.Writer)
+```
+
+得到采样数据之后，使用`go tool pprof`工具进行内存性能分析。
+
+`go tool pprof`默认是使用`-inuse_space`进行统计，还可以使用`-inuse-objects`查看分配对象的数量。
+
+## 服务型应用
+
+如果你的应用程序是一直运行的，比如 web 应用，那么可以使用`net/http/pprof`库，它能够在提供 HTTP 服务进行分析。
+
+如果使用了默认的`http.DefaultServeMux`（通常是代码直接使用 http.ListenAndServe(“0.0.0.0:8000”, nil)），只需要在你的web server端代码中按如下方式导入`net/http/pprof`
+
+```go
+import _ "net/http/pprof"
+```
+
+如果你使用自定义的 Mux，则需要手动注册一些路由规则：
+
+```go
+r.HandleFunc("/debug/pprof/", pprof.Index)
+r.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+r.HandleFunc("/debug/pprof/profile", pprof.Profile)
+r.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+r.HandleFunc("/debug/pprof/trace", pprof.Trace)
+```
+
+如果你使用的是gin框架，那么推荐使用[github.com/gin-contrib/pprof](https://github.com/gin-contrib/pprof)，在代码中通过以下命令注册pprof相关路由。
+
+```go
+pprof.Register(router)
+```
+
+不管哪种方式，你的 HTTP 服务都会多出`/debug/pprof` endpoint，访问它会得到类似下面的内容：![debug/pprof](https://www.liwenzhou.com/images/Go/performance_optimisation/pprof2.png)这个路径下还有几个子页面：
+
+- /debug/pprof/profile：访问这个链接会自动进行 CPU profiling，持续 30s，并生成一个文件供下载
+- /debug/pprof/heap： Memory Profiling 的路径，访问这个链接会得到一个内存 Profiling 结果的文件
+- /debug/pprof/block：block Profiling 的路径
+- /debug/pprof/goroutines：运行的 goroutines 列表，以及调用关系
+
+## go tool pprof命令
+
+不管是工具型应用还是服务型应用，我们使用相应的pprof库获取数据之后，下一步的都要对这些数据进行分析，我们可以使用`go tool pprof`命令行工具。
+
+`go tool pprof`最简单的使用方式为:
+
+```bash
+go tool pprof [binary] [source]
+```
+
+其中：
+
+- binary 是应用的二进制文件，用来解析各种符号；
+- source 表示 profile 数据的来源，可以是本地的文件，也可以是 http 地址。
+
+**注意事项：** 获取的 Profiling 数据是动态的，要想获得有效的数据，请保证应用处于较大的负载（比如正在生成中运行的服务，或者通过其他工具模拟访问压力）。否则如果应用处于空闲状态，得到的结果可能没有任何意义。
+
+## 具体示例
+
+首先我们来写一段有问题的代码：
+
+```go
+// runtime_pprof/main.go
+package main
+
+import (
+	"flag"
+	"fmt"
+	"os"
+	"runtime/pprof"
+	"time"
+)
+
+// 一段有问题的代码
+func logicCode() {
+	var c chan int
+	for {
+		select {
+		case v := <-c:
+			fmt.Printf("recv from chan, value:%v\n", v)
+		default:
+
+		}
+	}
+}
+
+func main() {
+	var isCPUPprof bool
+	var isMemPprof bool
+
+	flag.BoolVar(&isCPUPprof, "cpu", false, "turn cpu pprof on")
+	flag.BoolVar(&isMemPprof, "mem", false, "turn mem pprof on")
+	flag.Parse()
+
+	if isCPUPprof {
+		file, err := os.Create("./cpu.pprof")
+		if err != nil {
+			fmt.Printf("create cpu pprof failed, err:%v\n", err)
+			return
+		}
+		pprof.StartCPUProfile(file)
+		defer pprof.StopCPUProfile()
+	}
+	for i := 0; i < 8; i++ {
+		go logicCode()
+	}
+	time.Sleep(20 * time.Second)
+	if isMemPprof {
+		file, err := os.Create("./mem.pprof")
+		if err != nil {
+			fmt.Printf("create mem pprof failed, err:%v\n", err)
+			return
+		}
+		pprof.WriteHeapProfile(file)
+		file.Close()
+	}
+}
+```
+
+通过flag我们可以在命令行控制是否开启CPU和Mem的性能分析。 将上面的代码保存并编译成`runtime_pprof`可执行文件，执行时加上`-cpu`命令行参数如下：
+
+```bash
+./runtime_pprof -cpu
+```
+
+等待30秒后会在当前目录下生成一个`cpu.pprof`文件。
+
+### 命令行交互界面
+
+我们使用go工具链里的`pprof`来分析一下。
+
+```bash
+go tool pprof cpu.pprof
+```
+
+执行上面的代码会进入交互界面如下：
+
+```bash
+runtime_pprof $ go tool pprof cpu.pprof
+Type: cpu
+Time: Jun 28, 2019 at 11:28am (CST)
+Duration: 20.13s, Total samples = 1.91mins (568.60%)
+Entering interactive mode (type "help" for commands, "o" for options)
+(pprof)  
+```
+
+我们可以在交互界面输入`top3`来查看程序中占用CPU前3位的函数：
+
+```bash
+(pprof) top3
+Showing nodes accounting for 100.37s, 87.68% of 114.47s total
+Dropped 17 nodes (cum <= 0.57s)
+Showing top 3 nodes out of 4
+      flat  flat%   sum%        cum   cum%
+    42.52s 37.15% 37.15%     91.73s 80.13%  runtime.selectnbrecv
+    35.21s 30.76% 67.90%     39.49s 34.50%  runtime.chanrecv
+    22.64s 19.78% 87.68%    114.37s 99.91%  main.logicCode
+```
+
+其中：
+
+- flat：当前函数占用CPU的耗时
+- flat：:当前函数占用CPU的耗时百分比
+- sun%：函数占用CPU的耗时累计百分比
+- cum：当前函数加上调用当前函数的函数占用CPU的总耗时
+- cum%：当前函数加上调用当前函数的函数占用CPU的总耗时百分比
+- 最后一列：函数名称
+
+在大多数的情况下，我们可以通过分析这五列得出一个应用程序的运行情况，并对程序进行优化。
+
+我们还可以使用`list 函数名`命令查看具体的函数分析，例如执行`list logicCode`查看我们编写的函数的详细分析。
+
+```bash
+(pprof) list logicCode
+Total: 1.91mins
+ROUTINE ================ main.logicCode in .../runtime_pprof/main.go
+    22.64s   1.91mins (flat, cum) 99.91% of Total
+         .          .     12:func logicCode() {
+         .          .     13:   var c chan int
+         .          .     14:   for {
+         .          .     15:           select {
+         .          .     16:           case v := <-c:
+    22.64s   1.91mins     17:                   fmt.Printf("recv from chan, value:%v\n", v)
+         .          .     18:           default:
+         .          .     19:
+         .          .     20:           }
+         .          .     21:   }
+         .          .     22:}
+```
+
+通过分析发现大部分CPU资源被17行占用，我们分析出select语句中的default没有内容会导致上面的`case v:=<-c:`一直执行。我们在default分支添加一行`time.Sleep(time.Second)`即可。
+
+### 图形化
+
+或者可以直接输入web，通过svg图的方式查看程序中详细的CPU占用情况。 想要查看图形化的界面首先需要安装[graphviz](https://graphviz.gitlab.io/)图形化工具。
+
+Mac：
+
+```bash
+brew install graphviz
+```
+
+Windows: 下载[graphviz](https://graphviz.gitlab.io/_pages/Download/Download_windows.html) 将`graphviz`安装目录下的bin文件夹添加到Path环境变量中。 在终端输入`dot -version`查看是否安装成功。
+
+![CPU占比图](https://www.liwenzhou.com/images/Go/performance_optimisation/cpu_pprof.png)关于图形的说明： 每个框代表一个函数，理论上框的越大表示占用的CPU资源越多。 方框之间的线条代表函数之间的调用关系。 线条上的数字表示函数调用的次数。 方框中的第一行数字表示当前函数占用CPU的百分比，第二行数字表示当前函数累计占用CPU的百分比。
+
+除了分析CPU性能数据，pprof也支持分析内存性能数据。比如，使用下面的命令分析http服务的heap性能数据，查看当前程序的内存占用以及热点内存对象使用的情况。
+
+```bash
+# 查看内存占用数据
+go tool pprof -inuse_space http://127.0.0.1:8080/debug/pprof/heap
+go tool pprof -inuse_objects http://127.0.0.1:8080/debug/pprof/heap
+# 查看临时内存分配数据
+go tool pprof -alloc_space http://127.0.0.1:8080/debug/pprof/heap
+go tool pprof -alloc_objects http://127.0.0.1:8080/debug/pprof/heap
+```
+
+## go-torch和火焰图
+
+火焰图（Flame Graph）是 Bredan Gregg 创建的一种性能分析图表，因为它的样子近似 🔥而得名。上面的 profiling 结果也转换成火焰图，如果对火焰图比较了解可以手动来操作，不过这里我们要介绍一个工具：`go-torch`。这是 uber 开源的一个工具，可以直接读取 golang profiling 数据，并生成一个火焰图的 svg 文件。
+
+### 安装go-torch
+
+```bash
+   go get -v github.com/uber/go-torch
+```
+
+火焰图 svg 文件可以通过浏览器打开，它对于调用图的最优点是它是动态的：可以通过点击每个方块来 zoom in 分析它上面的内容。
+
+火焰图的调用顺序从下到上，每个方块代表一个函数，它上面一层表示这个函数会调用哪些函数，方块的大小代表了占用 CPU 使用的长短。火焰图的配色并没有特殊的意义，默认的红、黄配色是为了更像火焰而已。
+
+go-torch 工具的使用非常简单，没有任何参数的话，它会尝试从`http://localhost:8080/debug/pprof/profile`获取 profiling 数据。它有三个常用的参数可以调整：
+
+- -u –url：要访问的 URL，这里只是主机和端口部分
+- -s –suffix：pprof profile 的路径，默认为 /debug/pprof/profile
+- –seconds：要执行 profiling 的时间长度，默认为 30s
+
+### 安装 FlameGraph
+
+要生成火焰图，需要事先安装 FlameGraph工具，这个工具的安装很简单（需要perl环境支持），只要把对应的可执行文件加入到环境变量中即可。
+
+1. 下载安装perl：https://www.perl.org/get.html
+2. 下载FlameGraph：`git clone https://github.com/brendangregg/FlameGraph.git`
+3. 将`FlameGraph`目录加入到操作系统的环境变量中。
+4. Windows平台的同学，需要把`go-torch/render/flamegraph.go`文件中的`GenerateFlameGraph`按如下方式修改，然后在`go-torch`目录下执行`go install`即可。
+
+```go
+// GenerateFlameGraph runs the flamegraph script to generate a flame graph SVG. func GenerateFlameGraph(graphInput []byte, args ...string) ([]byte, error) {
+flameGraph := findInPath(flameGraphScripts)
+if flameGraph == "" {
+	return nil, errNoPerlScript
+}
+if runtime.GOOS == "windows" {
+	return runScript("perl", append([]string{flameGraph}, args...), graphInput)
+}
+  return runScript(flameGraph, args, graphInput)
+}
+```
+
+### 压测工具wrk
+
+推荐使用https://github.com/wg/wrk 或 https://github.com/adjust/go-wrk
+
+### 使用go-torch
+
+使用wrk进行压测:
+
+```bash
+go-wrk -n 50000 http://127.0.0.1:8080/book/list
+```
+
+在上面压测进行的同时，打开另一个终端执行:
+
+```bash
+go-torch -u http://127.0.0.1:8080 -t 30
+```
+
+30秒之后终端会初夏如下提示：`Writing svg to torch.svg`
+
+然后我们使用浏览器打开`torch.svg`就能看到如下火焰图了。![火焰图](https://www.liwenzhou.com/images/Go/performance_optimisation/pprof3.png)火焰图的y轴表示cpu调用方法的先后，x轴表示在每个采样调用时间内，方法所占的时间百分比，越宽代表占据cpu时间越多。通过火焰图我们就可以更清楚的找出耗时长的函数调用，然后不断的修正代码，重新采样，不断优化。
+
+此外还可以借助火焰图分析内存性能数据：
+
+```bash
+go-torch -inuse_space http://127.0.0.1:8080/debug/pprof/heap
+go-torch -inuse_objects http://127.0.0.1:8080/debug/pprof/heap
+go-torch -alloc_space http://127.0.0.1:8080/debug/pprof/heap
+go-torch -alloc_objects http://127.0.0.1:8080/debug/pprof/heap
+```
+
+## pprof与性能测试结合
+
+`go test`命令有两个参数和 pprof 相关，它们分别指定生成的 CPU 和 Memory profiling 保存的文件：
+
+- -cpuprofile：cpu profiling 数据要保存的文件地址
+- -memprofile：memory profiling 数据要报文的文件地址
+
+我们还可以选择将pprof与性能测试相结合，比如：
+
+比如下面执行测试的同时，也会执行 CPU profiling，并把结果保存在 cpu.prof 文件中：
+
+```bash
+go test -bench . -cpuprofile=cpu.prof
+```
+
+比如下面执行测试的同时，也会执行 Mem profiling，并把结果保存在 cpu.prof 文件中：
+
+```bash
+go test -bench . -memprofile=./mem.prof
+```
+
+需要注意的是，Profiling 一般和性能测试一起使用，这个原因在前文也提到过，只有应用在负载高的情况下 Profiling 才有意义。
+
+# Go操作MySQL
+
+## 连接
+
+Go语言中的`database/sql`包提供了保证SQL或类SQL数据库的泛用接口，并不提供具体的数据库驱动。使用`database/sql`包时必须注入（至少）一个数据库驱动。
+
+我们常用的数据库基本上都有完整的第三方实现。例如：[MySQL驱动](https://github.com/go-sql-driver/mysql)
+
+### 下载依赖
+
+```bash
+go get -u github.com/go-sql-driver/mysql
+```
+
+### 使用MySQL驱动
+
+```go
+func Open(driverName, dataSourceName string) (*DB, error)
+```
+
+Open打开一个dirverName指定的数据库，dataSourceName指定数据源，一般至少包括数据库文件名和其它连接必要的信息。
+
+```go
+import (
+	"database/sql"
+
+	_ "github.com/go-sql-driver/mysql"
+)
+
+func main() {
+   // DSN:Data Source Name
+	dsn := "user:password@tcp(127.0.0.1:3306)/dbname"
+	db, err := sql.Open("mysql", dsn)
+	if err != nil {
+		panic(err)
+	}
+	defer db.Close()  // 注意这行代码要写在上面err判断的下面
+}
+```
+
+**思考题**： 为什么上面代码中的`defer db.Close()`语句不应该写在`if err != nil`的前面呢？
+
+### 初始化连接
+
+Open函数可能只是验证其参数格式是否正确，实际上并不创建与数据库的连接。如果要检查数据源的名称是否真实有效，应该调用Ping方法。
+
+返回的DB对象可以安全地被多个goroutine并发使用，并且维护其自己的空闲连接池。因此，Open函数应该仅被调用一次，很少需要关闭这个DB对象。
+
+```go
+// 定义一个全局对象db
+var db *sql.DB
+
+// 定义一个初始化数据库的函数
+func initDB() (err error) {
+	// DSN:Data Source Name
+	dsn := "user:password@tcp(127.0.0.1:3306)/sql_test?charset=utf8mb4&parseTime=True"
+	// 不会校验账号密码是否正确
+	// 注意！！！这里不要使用:=，我们是给全局变量赋值，然后在main函数中使用全局变量db
+	db, err = sql.Open("mysql", dsn)
+	if err != nil {
+		return err
+	}
+	// 尝试与数据库建立连接（校验dsn是否正确）
+	err = db.Ping()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func main() {
+	err := initDB() // 调用输出化数据库的函数
+	if err != nil {
+		fmt.Printf("init db failed,err:%v\n", err)
+		return
+	}
+}
+```
+
+其中`sql.DB`是表示连接的数据库对象（结构体实例），它保存了连接数据库相关的所有信息。它内部维护着一个具有零到多个底层连接的连接池，它可以安全地被多个goroutine同时使用。
+
+### SetMaxOpenConns
+
+```go
+func (db *DB) SetMaxOpenConns(n int)
+```
+
+`SetMaxOpenConns`设置与数据库建立连接的最大数目。 如果n大于0且小于最大闲置连接数，会将最大闲置连接数减小到匹配最大开启连接数的限制。 如果n<=0，不会限制最大开启连接数，默认为0（无限制）。
+
+### SetMaxIdleConns
+
+```go
+func (db *DB) SetMaxIdleConns(n int)
+```
+
+SetMaxIdleConns设置连接池中的最大闲置连接数。 如果n大于最大开启连接数，则新的最大闲置连接数会减小到匹配最大开启连接数的限制。 如果n<=0，不会保留闲置连接。
+
+## CRUD
+
+### 建库建表
+
+我们先在MySQL中创建一个名为`sql_test`的数据库
+
+```sql
+CREATE DATABASE sql_test;
+```
+
+进入该数据库:
+
+```sql
+use sql_test;
+```
+
+执行以下命令创建一张用于测试的数据表：
+
+```sql
+CREATE TABLE `user` (
+    `id` BIGINT(20) NOT NULL AUTO_INCREMENT,
+    `name` VARCHAR(20) DEFAULT '',
+    `age` INT(11) DEFAULT '0',
+    PRIMARY KEY(`id`)
+)ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4;
+```
+
+### 查询
+
+为了方便查询，我们事先定义好一个结构体来存储user表的数据。
+
+```go
+type user struct {
+	id   int
+	age  int
+	name string
+}
+```
+
+#### 单行查询
+
+单行查询`db.QueryRow()`执行一次查询，并期望返回最多一行结果（即Row）。QueryRow总是返回非nil的值，直到返回值的Scan方法被调用时，才会返回被延迟的错误。（如：未找到结果）
+
+```go
+func (db *DB) QueryRow(query string, args ...interface{}) *Row
+```
+
+具体示例代码：
+
+```go
+// 查询单条数据示例
+func queryRowDemo() {
+	sqlStr := "select id, name, age from user where id=?"
+	var u user
+	// 非常重要：确保QueryRow之后调用Scan方法，否则持有的数据库链接不会被释放
+	err := db.QueryRow(sqlStr, 1).Scan(&u.id, &u.name, &u.age)
+	if err != nil {
+		fmt.Printf("scan failed, err:%v\n", err)
+		return
+	}
+	fmt.Printf("id:%d name:%s age:%d\n", u.id, u.name, u.age)
+}
+```
+
+#### 多行查询
+
+多行查询`db.Query()`执行一次查询，返回多行结果（即Rows），一般用于执行select命令。参数args表示query中的占位参数。
+
+```go
+func (db *DB) Query(query string, args ...interface{}) (*Rows, error)
+```
+
+具体示例代码：
+
+```go
+// 查询多条数据示例
+func queryMultiRowDemo() {
+	sqlStr := "select id, name, age from user where id > ?"
+	rows, err := db.Query(sqlStr, 0)
+	if err != nil {
+		fmt.Printf("query failed, err:%v\n", err)
+		return
+	}
+	// 非常重要：关闭rows释放持有的数据库链接
+	defer rows.Close()
+
+	// 循环读取结果集中的数据
+	for rows.Next() {
+		var u user
+		err := rows.Scan(&u.id, &u.name, &u.age)
+		if err != nil {
+			fmt.Printf("scan failed, err:%v\n", err)
+			return
+		}
+		fmt.Printf("id:%d name:%s age:%d\n", u.id, u.name, u.age)
+	}
+}
+```
+
+### 插入数据
+
+插入、更新和删除操作都使用`Exec`方法。
+
+```go
+func (db *DB) Exec(query string, args ...interface{}) (Result, error)
+```
+
+Exec执行一次命令（包括查询、删除、更新、插入等），返回的Result是对已执行的SQL命令的总结。参数args表示query中的占位参数。
+
+具体插入数据示例代码如下：
+
+```go
+// 插入数据
+func insertRowDemo() {
+	sqlStr := "insert into user(name, age) values (?,?)"
+	ret, err := db.Exec(sqlStr, "王五", 38)
+	if err != nil {
+		fmt.Printf("insert failed, err:%v\n", err)
+		return
+	}
+	theID, err := ret.LastInsertId() // 新插入数据的id
+	if err != nil {
+		fmt.Printf("get lastinsert ID failed, err:%v\n", err)
+		return
+	}
+	fmt.Printf("insert success, the id is %d.\n", theID)
+}
+```
+
+### 更新数据
+
+具体更新数据示例代码如下：
+
+```go
+// 更新数据
+func updateRowDemo() {
+	sqlStr := "update user set age=? where id = ?"
+	ret, err := db.Exec(sqlStr, 39, 3)
+	if err != nil {
+		fmt.Printf("update failed, err:%v\n", err)
+		return
+	}
+	n, err := ret.RowsAffected() // 操作影响的行数
+	if err != nil {
+		fmt.Printf("get RowsAffected failed, err:%v\n", err)
+		return
+	}
+	fmt.Printf("update success, affected rows:%d\n", n)
+}
+```
+
+### 删除数据
+
+具体删除数据的示例代码如下：
+
+```go
+// 删除数据
+func deleteRowDemo() {
+	sqlStr := "delete from user where id = ?"
+	ret, err := db.Exec(sqlStr, 3)
+	if err != nil {
+		fmt.Printf("delete failed, err:%v\n", err)
+		return
+	}
+	n, err := ret.RowsAffected() // 操作影响的行数
+	if err != nil {
+		fmt.Printf("get RowsAffected failed, err:%v\n", err)
+		return
+	}
+	fmt.Printf("delete success, affected rows:%d\n", n)
+}
+```
+
+## MySQL预处理
+
+### 什么是预处理？
+
+普通SQL语句执行过程：
+
+1. 客户端对SQL语句进行占位符替换得到完整的SQL语句。
+2. 客户端发送完整SQL语句到MySQL服务端
+3. MySQL服务端执行完整的SQL语句并将结果返回给客户端。
+
+预处理执行过程：
+
+1. 把SQL语句分成两部分，命令部分与数据部分。
+2. 先把命令部分发送给MySQL服务端，MySQL服务端进行SQL预处理。
+3. 然后把数据部分发送给MySQL服务端，MySQL服务端对SQL语句进行占位符替换。
+4. MySQL服务端执行完整的SQL语句并将结果返回给客户端。
+
+### 为什么要预处理？
+
+1. 优化MySQL服务器重复执行SQL的方法，可以提升服务器性能，提前让服务器编译，一次编译多次执行，节省后续编译的成本。
+2. 避免SQL注入问题。
+
+### Go实现MySQL预处理
+
+`database/sql`中使用下面的`Prepare`方法来实现预处理操作。
+
+```go
+func (db *DB) Prepare(query string) (*Stmt, error)
+```
+
+`Prepare`方法会先将sql语句发送给MySQL服务端，返回一个准备好的状态用于之后的查询和命令。返回值可以同时执行多个查询和命令。
+
+查询操作的预处理示例代码如下：
+
+```go
+// 预处理查询示例
+func prepareQueryDemo() {
+	sqlStr := "select id, name, age from user where id > ?"
+	stmt, err := db.Prepare(sqlStr)
+	if err != nil {
+		fmt.Printf("prepare failed, err:%v\n", err)
+		return
+	}
+	defer stmt.Close()
+	rows, err := stmt.Query(0)
+	if err != nil {
+		fmt.Printf("query failed, err:%v\n", err)
+		return
+	}
+	defer rows.Close()
+	// 循环读取结果集中的数据
+	for rows.Next() {
+		var u user
+		err := rows.Scan(&u.id, &u.name, &u.age)
+		if err != nil {
+			fmt.Printf("scan failed, err:%v\n", err)
+			return
+		}
+		fmt.Printf("id:%d name:%s age:%d\n", u.id, u.name, u.age)
+	}
+}
+```
+
+插入、更新和删除操作的预处理十分类似，这里以插入操作的预处理为例：
+
+```go
+// 预处理插入示例
+func prepareInsertDemo() {
+	sqlStr := "insert into user(name, age) values (?,?)"
+	stmt, err := db.Prepare(sqlStr)
+	if err != nil {
+		fmt.Printf("prepare failed, err:%v\n", err)
+		return
+	}
+	defer stmt.Close()
+	_, err = stmt.Exec("小王子", 18)
+	if err != nil {
+		fmt.Printf("insert failed, err:%v\n", err)
+		return
+	}
+	_, err = stmt.Exec("沙河娜扎", 18)
+	if err != nil {
+		fmt.Printf("insert failed, err:%v\n", err)
+		return
+	}
+	fmt.Println("insert success.")
+}
+```
+
+### SQL注入问题
+
+**我们任何时候都不应该自己拼接SQL语句！**
+
+这里我们演示一个自行拼接SQL语句的示例，编写一个根据name字段查询user表的函数如下：
+
+```go
+// sql注入示例
+func sqlInjectDemo(name string) {
+	sqlStr := fmt.Sprintf("select id, name, age from user where name='%s'", name)
+	fmt.Printf("SQL:%s\n", sqlStr)
+	var u user
+	err := db.QueryRow(sqlStr).Scan(&u.id, &u.name, &u.age)
+	if err != nil {
+		fmt.Printf("exec failed, err:%v\n", err)
+		return
+	}
+	fmt.Printf("user:%#v\n", u)
+}
+```
+
+此时以下输入字符串都可以引发SQL注入问题：
+
+```go
+sqlInjectDemo("xxx' or 1=1#")
+sqlInjectDemo("xxx' union select * from user #")
+sqlInjectDemo("xxx' and (select count(*) from user) <10 #")
+```
+
+**补充：**不同的数据库中，SQL语句使用的占位符语法不尽相同。
+
+|   数据库   |  占位符语法  |
+| :--------: | :----------: |
+|   MySQL    |     `?`      |
+| PostgreSQL | `$1`, `$2`等 |
+|   SQLite   |  `?` 和`$1`  |
+|   Oracle   |   `:name`    |
+
+## Go实现MySQL事务
+
+### 什么是事务？
+
+事务：一个最小的不可再分的工作单元；通常一个事务对应一个完整的业务(例如银行账户转账业务，该业务就是一个最小的工作单元)，同时这个完整的业务需要执行多次的DML(insert、update、delete)语句共同联合完成。A转账给B，这里面就需要执行两次update操作。
+
+在MySQL中只有使用了`Innodb`数据库引擎的数据库或表才支持事务。事务处理可以用来维护数据库的完整性，保证成批的SQL语句要么全部执行，要么全部不执行。
+
+### 事务的ACID
+
+通常事务必须满足4个条件（ACID）：原子性（Atomicity，或称不可分割性）、一致性（Consistency）、隔离性（Isolation，又称独立性）、持久性（Durability）。
+
+|  条件  |                             解释                             |
+| :----: | :----------------------------------------------------------: |
+| 原子性 | 一个事务（transaction）中的所有操作，要么全部完成，要么全部不完成，不会结束在中间某个环节。事务在执行过程中发生错误，会被回滚（Rollback）到事务开始前的状态，就像这个事务从来没有执行过一样。 |
+| 一致性 | 在事务开始之前和事务结束以后，数据库的完整性没有被破坏。这表示写入的资料必须完全符合所有的预设规则，这包含资料的精确度、串联性以及后续数据库可以自发性地完成预定的工作。 |
+| 隔离性 | 数据库允许多个并发事务同时对其数据进行读写和修改的能力，隔离性可以防止多个事务并发执行时由于交叉执行而导致数据的不一致。事务隔离分为不同级别，包括读未提交（Read uncommitted）、读提交（read committed）、可重复读（repeatable read）和串行化（Serializable）。 |
+| 持久性 | 事务处理结束后，对数据的修改就是永久的，即便系统故障也不会丢失。 |
+
+### 事务相关方法
+
+Go语言中使用以下三个方法实现MySQL中的事务操作。 开始事务
+
+```go
+func (db *DB) Begin() (*Tx, error)
+```
+
+提交事务
+
+```go
+func (tx *Tx) Commit() error
+```
+
+回滚事务
+
+```go
+func (tx *Tx) Rollback() error
+```
+
+### 事务示例
+
+下面的代码演示了一个简单的事务操作，该事物操作能够确保两次更新操作要么同时成功要么同时失败，不会存在中间状态。
+
+```go
+// 事务操作示例
+func transactionDemo() {
+	tx, err := db.Begin() // 开启事务
+	if err != nil {
+		if tx != nil {
+			tx.Rollback() // 回滚
+		}
+		fmt.Printf("begin trans failed, err:%v\n", err)
+		return
+	}
+	sqlStr1 := "Update user set age=30 where id=?"
+	ret1, err := tx.Exec(sqlStr1, 2)
+	if err != nil {
+		tx.Rollback() // 回滚
+		fmt.Printf("exec sql1 failed, err:%v\n", err)
+		return
+	}
+	affRow1, err := ret1.RowsAffected()
+	if err != nil {
+		tx.Rollback() // 回滚
+		fmt.Printf("exec ret1.RowsAffected() failed, err:%v\n", err)
+		return
+	}
+
+	sqlStr2 := "Update user set age=40 where id=?"
+	ret2, err := tx.Exec(sqlStr2, 3)
+	if err != nil {
+		tx.Rollback() // 回滚
+		fmt.Printf("exec sql2 failed, err:%v\n", err)
+		return
+	}
+	affRow2, err := ret2.RowsAffected()
+	if err != nil {
+		tx.Rollback() // 回滚
+		fmt.Printf("exec ret1.RowsAffected() failed, err:%v\n", err)
+		return
+	}
+
+	fmt.Println(affRow1, affRow2)
+	if affRow1 == 1 && affRow2 == 1 {
+		fmt.Println("事务提交啦...")
+		tx.Commit() // 提交事务
+	} else {
+		tx.Rollback()
+		fmt.Println("事务回滚啦...")
+	}
+
+	fmt.Println("exec trans success!")
+```

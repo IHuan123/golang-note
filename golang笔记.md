@@ -7647,3 +7647,908 @@ func transactionDemo() {
 
 	fmt.Println("exec trans success!")
 ```
+
+# sqlx库使用指南
+
+在项目中我们通常可能会使用`database/sql`连接MySQL数据库。本文借助使用`sqlx`实现批量插入数据的例子，介绍了`sqlx`中可能被你忽视了的`sqlx.In`和`DB.NamedExec`方法。
+
+## sqlx介绍
+
+在项目中我们通常可能会使用`database/sql`连接MySQL数据库。`sqlx`可以认为是Go语言内置`database/sql`的超集，它在优秀的内置`database/sql`基础上提供了一组扩展。这些扩展中除了大家常用来查询的`Get(dest interface{}, ...) error`和`Select(dest interface{}, ...) error`外还有很多其他强大的功能。
+
+## 安装sqlx
+
+```go
+go get github.com/jmoiron/sqlx
+```
+
+## 基本使用
+
+### 连接数据库
+
+```go
+var db *sqlx.DB
+
+func initDB() (err error) {
+	dsn := "user:password@tcp(127.0.0.1:3306)/sql_test?charset=utf8mb4&parseTime=True"
+	// 也可以使用MustConnect连接不成功就panic
+	db, err = sqlx.Connect("mysql", dsn)
+	if err != nil {
+		fmt.Printf("connect DB failed, err:%v\n", err)
+		return
+	}
+	db.SetMaxOpenConns(20)
+	db.SetMaxIdleConns(10)
+	return
+}
+```
+
+### 查询
+
+查询单行数据示例代码如下：
+
+```go
+// 查询单条数据示例
+func queryRowDemo() {
+	sqlStr := "select id, name, age from user where id=?"
+	var u user
+	err := db.Get(&u, sqlStr, 1)
+	if err != nil {
+		fmt.Printf("get failed, err:%v\n", err)
+		return
+	}
+	fmt.Printf("id:%d name:%s age:%d\n", u.ID, u.Name, u.Age)
+}
+```
+
+查询多行数据示例代码如下：
+
+```go
+// 查询多条数据示例
+func queryMultiRowDemo() {
+	sqlStr := "select id, name, age from user where id > ?"
+	var users []user
+	err := db.Select(&users, sqlStr, 0)
+	if err != nil {
+		fmt.Printf("query failed, err:%v\n", err)
+		return
+	}
+	fmt.Printf("users:%#v\n", users)
+}
+```
+
+### 插入、更新和删除
+
+sqlx中的exec方法与原生sql中的exec使用基本一致：
+
+```go
+// 插入数据
+func insertRowDemo() {
+	sqlStr := "insert into user(name, age) values (?,?)"
+	ret, err := db.Exec(sqlStr, "沙河小王子", 19)
+	if err != nil {
+		fmt.Printf("insert failed, err:%v\n", err)
+		return
+	}
+	theID, err := ret.LastInsertId() // 新插入数据的id
+	if err != nil {
+		fmt.Printf("get lastinsert ID failed, err:%v\n", err)
+		return
+	}
+	fmt.Printf("insert success, the id is %d.\n", theID)
+}
+
+// 更新数据
+func updateRowDemo() {
+	sqlStr := "update user set age=? where id = ?"
+	ret, err := db.Exec(sqlStr, 39, 6)
+	if err != nil {
+		fmt.Printf("update failed, err:%v\n", err)
+		return
+	}
+	n, err := ret.RowsAffected() // 操作影响的行数
+	if err != nil {
+		fmt.Printf("get RowsAffected failed, err:%v\n", err)
+		return
+	}
+	fmt.Printf("update success, affected rows:%d\n", n)
+}
+
+// 删除数据
+func deleteRowDemo() {
+	sqlStr := "delete from user where id = ?"
+	ret, err := db.Exec(sqlStr, 6)
+	if err != nil {
+		fmt.Printf("delete failed, err:%v\n", err)
+		return
+	}
+	n, err := ret.RowsAffected() // 操作影响的行数
+	if err != nil {
+		fmt.Printf("get RowsAffected failed, err:%v\n", err)
+		return
+	}
+	fmt.Printf("delete success, affected rows:%d\n", n)
+}
+```
+
+### NamedExec
+
+`DB.NamedExec`方法用来绑定SQL语句与结构体或map中的同名字段。
+
+```go
+func insertUserDemo()(err error){
+	sqlStr := "INSERT INTO user (name,age) VALUES (:name,:age)"
+	_, err = db.NamedExec(sqlStr,
+		map[string]interface{}{
+			"name": "七米",
+			"age": 28,
+		})
+	return
+}
+```
+
+### NamedQuery
+
+与`DB.NamedExec`同理，这里是支持查询。
+
+```go
+func namedQuery(){
+	sqlStr := "SELECT * FROM user WHERE name=:name"
+	// 使用map做命名查询
+	rows, err := db.NamedQuery(sqlStr, map[string]interface{}{"name": "七米"})
+	if err != nil {
+		fmt.Printf("db.NamedQuery failed, err:%v\n", err)
+		return
+	}
+	defer rows.Close()
+	for rows.Next(){
+		var u user
+		err := rows.StructScan(&u)
+		if err != nil {
+			fmt.Printf("scan failed, err:%v\n", err)
+			continue
+		}
+		fmt.Printf("user:%#v\n", u)
+	}
+
+	u := user{
+		Name: "七米",
+	}
+	// 使用结构体命名查询，根据结构体字段的 db tag进行映射
+	rows, err = db.NamedQuery(sqlStr, u)
+	if err != nil {
+		fmt.Printf("db.NamedQuery failed, err:%v\n", err)
+		return
+	}
+	defer rows.Close()
+	for rows.Next(){
+		var u user
+		err := rows.StructScan(&u)
+		if err != nil {
+			fmt.Printf("scan failed, err:%v\n", err)
+			continue
+		}
+		fmt.Printf("user:%#v\n", u)
+	}
+}
+```
+
+### 事务操作
+
+对于事务操作，我们可以使用`sqlx`中提供的`db.Beginx()`和`tx.Exec()`方法。示例代码如下：
+
+```go
+func transactionDemo2()(err error) {
+	tx, err := db.Beginx() // 开启事务
+	if err != nil {
+		fmt.Printf("begin trans failed, err:%v\n", err)
+		return err
+	}
+	defer func() {
+		if p := recover(); p != nil {
+			tx.Rollback()
+			panic(p) // re-throw panic after Rollback
+		} else if err != nil {
+			fmt.Println("rollback")
+			tx.Rollback() // err is non-nil; don't change it
+		} else {
+			err = tx.Commit() // err is nil; if Commit returns error update err
+			fmt.Println("commit")
+		}
+	}()
+
+	sqlStr1 := "Update user set age=20 where id=?"
+
+	rs, err := tx.Exec(sqlStr1, 1)
+	if err!= nil{
+		return err
+	}
+	n, err := rs.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n != 1 {
+		return errors.New("exec sqlStr1 failed")
+	}
+	sqlStr2 := "Update user set age=50 where i=?"
+	rs, err = tx.Exec(sqlStr2, 5)
+	if err!=nil{
+		return err
+	}
+	n, err = rs.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n != 1 {
+		return errors.New("exec sqlStr1 failed")
+	}
+	return err
+}
+```
+
+## sqlx.In
+
+`sqlx.In`是`sqlx`提供的一个非常方便的函数。
+
+### sqlx.In的批量插入示例
+
+#### 表结构
+
+为了方便演示插入数据操作，这里创建一个`user`表，表结构如下：
+
+```sql
+CREATE TABLE `user` (
+    `id` BIGINT(20) NOT NULL AUTO_INCREMENT,
+    `name` VARCHAR(20) DEFAULT '',
+    `age` INT(11) DEFAULT '0',
+    PRIMARY KEY(`id`)
+)ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4;
+```
+
+#### 结构体
+
+定义一个`user`结构体，字段通过tag与数据库中user表的列一致。
+
+```go
+type User struct {
+	Name string `db:"name"`
+	Age  int    `db:"age"`
+}
+```
+
+#### bindvars（绑定变量）
+
+查询占位符`?`在内部称为**bindvars（查询占位符）**,它非常重要。你应该始终使用它们向数据库发送值，因为它们可以防止SQL注入攻击。`database/sql`不尝试对查询文本进行任何验证；它与编码的参数一起按原样发送到服务器。除非驱动程序实现一个特殊的接口，否则在执行之前，查询是在服务器上准备的。因此`bindvars`是特定于数据库的:
+
+- MySQL中使用`?`
+- PostgreSQL使用枚举的`$1`、`$2`等bindvar语法
+- SQLite中`?`和`$1`的语法都支持
+- Oracle中使用`:name`的语法
+
+`bindvars`的一个常见误解是，它们用来在sql语句中插入值。它们其实仅用于参数化，不允许更改SQL语句的结构。例如，使用`bindvars`尝试参数化列或表名将不起作用：
+
+```go
+// ？不能用来插入表名（做SQL语句中表名的占位符）
+db.Query("SELECT * FROM ?", "mytable")
+ 
+// ？也不能用来插入列名（做SQL语句中列名的占位符）
+db.Query("SELECT ?, ? FROM people", "name", "location")
+```
+
+#### 自己拼接语句实现批量插入
+
+比较笨，但是很好理解。就是有多少个User就拼接多少个`(?, ?)`。
+
+```go
+// BatchInsertUsers 自行构造批量插入的语句
+func BatchInsertUsers(users []*User) error {
+	// 存放 (?, ?) 的slice
+	valueStrings := make([]string, 0, len(users))
+	// 存放values的slice
+	valueArgs := make([]interface{}, 0, len(users) * 2)
+	// 遍历users准备相关数据
+	for _, u := range users {
+		// 此处占位符要与插入值的个数对应
+		valueStrings = append(valueStrings, "(?, ?)")
+		valueArgs = append(valueArgs, u.Name)
+		valueArgs = append(valueArgs, u.Age)
+	}
+	// 自行拼接要执行的具体语句
+	stmt := fmt.Sprintf("INSERT INTO user (name, age) VALUES %s",
+		strings.Join(valueStrings, ","))
+	_, err := DB.Exec(stmt, valueArgs...)
+	return err
+}
+```
+
+#### 使用sqlx.In实现批量插入
+
+前提是需要我们的结构体实现`driver.Valuer`接口：
+
+```go
+func (u User) Value() (driver.Value, error) {
+	return []interface{}{u.Name, u.Age}, nil
+}
+```
+
+使用`sqlx.In`实现批量插入代码如下：
+
+```go
+// BatchInsertUsers2 使用sqlx.In帮我们拼接语句和参数, 注意传入的参数是[]interface{}
+func BatchInsertUsers2(users []interface{}) error {
+	query, args, _ := sqlx.In(
+		"INSERT INTO user (name, age) VALUES (?), (?), (?)",
+		users..., // 如果arg实现了 driver.Valuer, sqlx.In 会通过调用 Value()来展开它
+	)
+	fmt.Println(query) // 查看生成的querystring
+	fmt.Println(args)  // 查看生成的args
+	_, err := DB.Exec(query, args...)
+	return err
+}
+```
+
+#### 使用NamedExec实现批量插入
+
+**注意** ：该功能需1.3.1版本以上，并且1.3.1版本目前还有点问题，sql语句最后不能有空格和`;`，详见[issues/690](https://github.com/jmoiron/sqlx/issues/690)。
+
+使用`NamedExec`实现批量插入的代码如下：
+
+```go
+// BatchInsertUsers3 使用NamedExec实现批量插入
+func BatchInsertUsers3(users []*User) error {
+	_, err := DB.NamedExec("INSERT INTO user (name, age) VALUES (:name, :age)", users)
+	return err
+}
+```
+
+把上面三种方法综合起来试一下：
+
+```go
+func main() {
+	err := initDB()
+	if err != nil {
+		panic(err)
+	}
+	defer DB.Close()
+	u1 := User{Name: "七米", Age: 18}
+	u2 := User{Name: "q1mi", Age: 28}
+	u3 := User{Name: "小王子", Age: 38}
+
+	// 方法1
+	users := []*User{&u1, &u2, &u3}
+	err = BatchInsertUsers(users)
+	if err != nil {
+		fmt.Printf("BatchInsertUsers failed, err:%v\n", err)
+	}
+
+	// 方法2
+	users2 := []interface{}{u1, u2, u3}
+	err = BatchInsertUsers2(users2)
+	if err != nil {
+		fmt.Printf("BatchInsertUsers2 failed, err:%v\n", err)
+	}
+
+	// 方法3
+	users3 := []*User{&u1, &u2, &u3}
+	err = BatchInsertUsers3(users3)
+	if err != nil {
+		fmt.Printf("BatchInsertUsers3 failed, err:%v\n", err)
+	}
+}
+```
+
+### sqlx.In的查询示例
+
+关于`sqlx.In`这里再补充一个用法，在`sqlx`查询语句中实现In查询和FIND_IN_SET函数。即实现`SELECT * FROM user WHERE id in (3, 2, 1);`和`SELECT * FROM user WHERE id in (3, 2, 1) ORDER BY FIND_IN_SET(id, '3,2,1');`。
+
+#### in查询
+
+查询id在给定id集合中的数据。
+
+```go
+// QueryByIDs 根据给定ID查询
+func QueryByIDs(ids []int)(users []User, err error){
+	// 动态填充id
+	query, args, err := sqlx.In("SELECT name, age FROM user WHERE id IN (?)", ids)
+	if err != nil {
+		return
+	}
+	// sqlx.In 返回带 `?` bindvar的查询语句, 我们使用Rebind()重新绑定它
+	query = DB.Rebind(query)
+
+	err = DB.Select(&users, query, args...)
+	return
+}
+```
+
+#### in查询和FIND_IN_SET函数
+
+查询id在给定id集合的数据并维持给定id集合的顺序。
+
+```go
+// QueryAndOrderByIDs 按照指定id查询并维护顺序
+func QueryAndOrderByIDs(ids []int)(users []User, err error){
+	// 动态填充id
+	strIDs := make([]string, 0, len(ids))
+	for _, id := range ids {
+		strIDs = append(strIDs, fmt.Sprintf("%d", id))
+	}
+	query, args, err := sqlx.In("SELECT name, age FROM user WHERE id IN (?) ORDER BY FIND_IN_SET(id, ?)", ids, strings.Join(strIDs, ","))
+	if err != nil {
+		return
+	}
+
+	// sqlx.In 返回带 `?` bindvar的查询语句, 我们使用Rebind()重新绑定它
+	query = DB.Rebind(query)
+
+	err = DB.Select(&users, query, args...)
+	return
+}
+```
+
+当然，在这个例子里面你也可以先使用`IN`查询，然后通过代码按给定的ids对查询结果进行排序。
+
+# Redis介绍
+
+Redis是一个开源的内存数据库，Redis提供了多种不同类型的数据结构，很多业务场景下的问题都可以很自然地映射到这些数据结构上。除此之外，通过复制、持久化和客户端分片等特性，我们可以很方便地将Redis扩展成一个能够包含数百GB数据、每秒处理上百万次请求的系统。
+
+## Redis支持的数据结构
+
+Redis支持诸如字符串（strings）、哈希（hashes）、列表（lists）、集合（sets）、带范围查询的排序集合（sorted sets）、位图（bitmaps）、hyperloglogs、带半径查询和流的地理空间索引等数据结构（geospatial indexes）。
+
+## Redis应用场景
+
+- 缓存系统，减轻主数据库（MySQL）的压力。
+- 计数场景，比如微博、抖音中的关注数和粉丝数。
+- 热门排行榜，需要排序的场景特别适合使用ZSET。
+- 利用LIST可以实现队列的功能。
+
+## 准备Redis环境
+
+这里直接使用Docker启动一个redis环境，方便学习使用。
+
+docker启动一个名为redis507的5.0.7版本的redis server示例：
+
+```bash
+docker run --name redis507 -p 6379:6379 -d redis:5.0.7
+```
+
+**注意：**此处的版本、容器名和端口号请根据自己需要设置。
+
+启动一个redis-cli连接上面的redis server:
+
+```bash
+docker run -it --network host --rm redis:5.0.7 redis-cli
+```
+
+# go-redis库
+
+## 安装
+
+区别于另一个比较常用的Go语言redis client库：[redigo](https://github.com/gomodule/redigo)，我们这里采用https://github.com/go-redis/redis连接Redis数据库并进行操作，因为`go-redis`支持连接哨兵及集群模式的Redis。
+
+使用以下命令下载并安装:
+
+```bash
+go get -u github.com/go-redis/redis
+```
+
+## 连接
+
+### 普通连接
+
+```go
+// 声明一个全局的rdb变量
+var rdb *redis.Client
+
+// 初始化连接
+func initClient() (err error) {
+	rdb = redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	})
+
+	_, err = rdb.Ping().Result()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+```
+
+## V8新版本相关
+
+最新版本的`go-redis`库的相关命令都需要传递`context.Context`参数，例如：
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"github.com/go-redis/redis/v8" // 注意导入的是新版本
+)
+
+var (
+	rdb *redis.Client
+)
+
+// 初始化连接
+func initClient() (err error) {
+	rdb = redis.NewClient(&redis.Options{
+		Addr:     "localhost:16379",
+		Password: "",  // no password set
+		DB:       0,   // use default DB
+		PoolSize: 100, // 连接池大小
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	_, err = rdb.Ping(ctx).Result()
+	return err
+}
+
+func V8Example() {
+	ctx := context.Background()
+	if err := initClient(); err != nil {
+		return
+	}
+
+	err := rdb.Set(ctx, "key", "value", 0).Err()
+	if err != nil {
+		panic(err)
+	}
+
+	val, err := rdb.Get(ctx, "key").Result()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("key", val)
+
+	val2, err := rdb.Get(ctx, "key2").Result()
+	if err == redis.Nil {
+		fmt.Println("key2 does not exist")
+	} else if err != nil {
+		panic(err)
+	} else {
+		fmt.Println("key2", val2)
+	}
+	// Output: key value
+	// key2 does not exist
+}
+```
+
+### 连接Redis哨兵模式
+
+```go
+func initClient()(err error){
+	rdb := redis.NewFailoverClient(&redis.FailoverOptions{
+		MasterName:    "master",
+		SentinelAddrs: []string{"x.x.x.x:26379", "xx.xx.xx.xx:26379", "xxx.xxx.xxx.xxx:26379"},
+	})
+	_, err = rdb.Ping().Result()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+```
+
+### 连接Redis集群
+
+```go
+func initClient()(err error){
+	rdb := redis.NewClusterClient(&redis.ClusterOptions{
+		Addrs: []string{":7000", ":7001", ":7002", ":7003", ":7004", ":7005"},
+	})
+	_, err = rdb.Ping().Result()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+```
+
+## 基本使用
+
+### set/get示例
+
+```go
+func redisExample() {
+	err := rdb.Set("score", 100, 0).Err()
+	if err != nil {
+		fmt.Printf("set score failed, err:%v\n", err)
+		return
+	}
+
+	val, err := rdb.Get("score").Result()
+	if err != nil {
+		fmt.Printf("get score failed, err:%v\n", err)
+		return
+	}
+	fmt.Println("score", val)
+
+	val2, err := rdb.Get("name").Result()
+	if err == redis.Nil {
+		fmt.Println("name does not exist")
+	} else if err != nil {
+		fmt.Printf("get name failed, err:%v\n", err)
+		return
+	} else {
+		fmt.Println("name", val2)
+	}
+}
+```
+
+### zset示例
+
+```go
+func redisExample2() {
+	zsetKey := "language_rank"
+	languages := []redis.Z{
+		redis.Z{Score: 90.0, Member: "Golang"},
+		redis.Z{Score: 98.0, Member: "Java"},
+		redis.Z{Score: 95.0, Member: "Python"},
+		redis.Z{Score: 97.0, Member: "JavaScript"},
+		redis.Z{Score: 99.0, Member: "C/C++"},
+	}
+	// ZADD
+	num, err := rdb.ZAdd(zsetKey, languages...).Result()
+	if err != nil {
+		fmt.Printf("zadd failed, err:%v\n", err)
+		return
+	}
+	fmt.Printf("zadd %d succ.\n", num)
+
+	// 把Golang的分数加10
+	newScore, err := rdb.ZIncrBy(zsetKey, 10.0, "Golang").Result()
+	if err != nil {
+		fmt.Printf("zincrby failed, err:%v\n", err)
+		return
+	}
+	fmt.Printf("Golang's score is %f now.\n", newScore)
+
+	// 取分数最高的3个
+	ret, err := rdb.ZRevRangeWithScores(zsetKey, 0, 2).Result()
+	if err != nil {
+		fmt.Printf("zrevrange failed, err:%v\n", err)
+		return
+	}
+	for _, z := range ret {
+		fmt.Println(z.Member, z.Score)
+	}
+
+	// 取95~100分的
+	op := redis.ZRangeBy{
+		Min: "95",
+		Max: "100",
+	}
+	ret, err = rdb.ZRangeByScoreWithScores(zsetKey, op).Result()
+	if err != nil {
+		fmt.Printf("zrangebyscore failed, err:%v\n", err)
+		return
+	}
+	for _, z := range ret {
+		fmt.Println(z.Member, z.Score)
+	}
+}
+```
+
+输出结果如下：
+
+```bash
+$ ./06redis_demo 
+zadd 0 succ.
+Golang's score is 100.000000 now.
+Golang 100
+C/C++ 99
+Java 98
+JavaScript 97
+Java 98
+C/C++ 99
+Golang 100
+```
+
+### 根据前缀获取Key
+
+```go
+vals, err := rdb.Keys(ctx, "prefix*").Result()
+```
+
+### 执行自定义命令
+
+```go
+res, err := rdb.Do(ctx, "set", "key", "value").Result()
+```
+
+### 按通配符删除key
+
+当通配符匹配的key的数量不多时，可以使用`Keys()`得到所有的key在使用`Del`命令删除。 如果key的数量非常多的时候，我们可以搭配使用`Scan`命令和`Del`命令完成删除。
+
+```go
+ctx := context.Background()
+iter := rdb.Scan(ctx, 0, "prefix*", 0).Iterator()
+for iter.Next(ctx) {
+	err := rdb.Del(ctx, iter.Val()).Err()
+	if err != nil {
+		panic(err)
+	}
+}
+if err := iter.Err(); err != nil {
+	panic(err)
+}
+```
+
+### Pipeline
+
+`Pipeline` 主要是一种网络优化。它本质上意味着客户端缓冲一堆命令并一次性将它们发送到服务器。这些命令不能保证在事务中执行。这样做的好处是节省了每个命令的网络往返时间（RTT）。
+
+`Pipeline` 基本示例如下：
+
+```go
+pipe := rdb.Pipeline()
+
+incr := pipe.Incr("pipeline_counter")
+pipe.Expire("pipeline_counter", time.Hour)
+
+_, err := pipe.Exec()
+fmt.Println(incr.Val(), err)
+```
+
+上面的代码相当于将以下两个命令一次发给redis server端执行，与不使用`Pipeline`相比能减少一次RTT。
+
+```bash
+INCR pipeline_counter
+EXPIRE pipeline_counts 3600
+```
+
+也可以使用`Pipelined`：
+
+```go
+var incr *redis.IntCmd
+_, err := rdb.Pipelined(func(pipe redis.Pipeliner) error {
+	incr = pipe.Incr("pipelined_counter")
+	pipe.Expire("pipelined_counter", time.Hour)
+	return nil
+})
+fmt.Println(incr.Val(), err)
+```
+
+在某些场景下，当我们有多条命令要执行时，就可以考虑使用pipeline来优化。
+
+### 事务
+
+Redis是单线程的，因此单个命令始终是原子的，但是来自不同客户端的两个给定命令可以依次执行，例如在它们之间交替执行。但是，`Multi/exec`能够确保在`multi/exec`两个语句之间的命令之间没有其他客户端正在执行命令。
+
+在这种场景我们需要使用`TxPipeline`。`TxPipeline`总体上类似于上面的`Pipeline`，但是它内部会使用`MULTI/EXEC`包裹排队的命令。例如：
+
+```go
+pipe := rdb.TxPipeline()
+
+incr := pipe.Incr("tx_pipeline_counter")
+pipe.Expire("tx_pipeline_counter", time.Hour)
+
+_, err := pipe.Exec()
+fmt.Println(incr.Val(), err)
+```
+
+上面代码相当于在一个RTT下执行了下面的redis命令：
+
+```bash
+MULTI
+INCR pipeline_counter
+EXPIRE pipeline_counts 3600
+EXEC
+```
+
+还有一个与上文类似的`TxPipelined`方法，使用方法如下：
+
+```go
+var incr *redis.IntCmd
+_, err := rdb.TxPipelined(func(pipe redis.Pipeliner) error {
+	incr = pipe.Incr("tx_pipelined_counter")
+	pipe.Expire("tx_pipelined_counter", time.Hour)
+	return nil
+})
+fmt.Println(incr.Val(), err)
+```
+
+### Watch
+
+在某些场景下，我们除了要使用`MULTI/EXEC`命令外，还需要配合使用`WATCH`命令。在用户使用`WATCH`命令监视某个键之后，直到该用户执行`EXEC`命令的这段时间里，如果有其他用户抢先对被监视的键进行了替换、更新、删除等操作，那么当用户尝试执行`EXEC`的时候，事务将失败并返回一个错误，用户可以根据这个错误选择重试事务或者放弃事务。
+
+```go
+Watch(fn func(*Tx) error, keys ...string) error
+```
+
+Watch方法接收一个函数和一个或多个key作为参数。基本使用示例如下：
+
+```go
+// 监视watch_count的值，并在值不变的前提下将其值+1
+key := "watch_count"
+err = client.Watch(func(tx *redis.Tx) error {
+	n, err := tx.Get(key).Int()
+	if err != nil && err != redis.Nil {
+		return err
+	}
+	_, err = tx.Pipelined(func(pipe redis.Pipeliner) error {
+		pipe.Set(key, n+1, 0)
+		return nil
+	})
+	return err
+}, key)
+```
+
+最后看一个V8版本官方文档中使用GET和SET命令以事务方式递增Key的值的示例，仅当Key的值不发生变化时提交一个事务。
+
+```go
+func transactionDemo() {
+	var (
+		maxRetries   = 1000
+		routineCount = 10
+	)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Increment 使用GET和SET命令以事务方式递增Key的值
+	increment := func(key string) error {
+		// 事务函数
+		txf := func(tx *redis.Tx) error {
+			// 获得key的当前值或零值
+			n, err := tx.Get(ctx, key).Int()
+			if err != nil && err != redis.Nil {
+				return err
+			}
+
+			// 实际的操作代码（乐观锁定中的本地操作）
+			n++
+
+			// 操作仅在 Watch 的 Key 没发生变化的情况下提交
+			_, err = tx.TxPipelined(ctx, func(pipe redis.Pipeliner) error {
+				pipe.Set(ctx, key, n, 0)
+				return nil
+			})
+			return err
+		}
+
+		// 最多重试 maxRetries 次
+		for i := 0; i < maxRetries; i++ {
+			err := rdb.Watch(ctx, txf, key)
+			if err == nil {
+				// 成功
+				return nil
+			}
+			if err == redis.TxFailedErr {
+				// 乐观锁丢失 重试
+				continue
+			}
+			// 返回其他的错误
+			return err
+		}
+
+		return errors.New("increment reached maximum number of retries")
+	}
+
+	// 模拟 routineCount 个并发同时去修改 counter3 的值
+	var wg sync.WaitGroup
+	wg.Add(routineCount)
+	for i := 0; i < routineCount; i++ {
+		go func() {
+			defer wg.Done()
+			if err := increment("counter3"); err != nil {
+				fmt.Println("increment error:", err)
+			}
+		}()
+	}
+	wg.Wait()
+
+	n, err := rdb.Get(context.TODO(), "counter3").Int()
+	fmt.Println("ended with", n, err)
+}
+```
+
+更多详情请查阅[文档](https://pkg.go.dev/github.com/go-redis/redis)。

@@ -5335,7 +5335,7 @@ func Encode(message string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return pkg.Bytes(), nil
+	ret 
 }
 
 // Decode 解码消息
@@ -7180,7 +7180,7 @@ func Open(driverName, dataSourceName string) (*DB, error)
 Open打开一个dirverName指定的数据库，dataSourceName指定数据源，一般至少包括数据库文件名和其它连接必要的信息。
 
 ```go
-import (
+import 
 	"database/sql"
 
 	_ "github.com/go-sql-driver/mysql"

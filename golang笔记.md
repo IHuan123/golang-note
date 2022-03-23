@@ -5335,7 +5335,7 @@ func Encode(message string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return pkg.Bytes(), nil
+	ret 
 }
 
 // Decode 解码消息
@@ -7180,7 +7180,7 @@ func Open(driverName, dataSourceName string) (*DB, error)
 Open打开一个dirverName指定的数据库，dataSourceName指定数据源，一般至少包括数据库文件名和其它连接必要的信息。
 
 ```go
-import (
+import 
 	"database/sql"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -8552,3 +8552,1040 @@ func transactionDemo() {
 ```
 
 更多详情请查阅[文档](https://pkg.go.dev/github.com/go-redis/redis)。
+
+# NSQ
+
+## NSQ介绍
+
+[NSQ](https://nsq.io/)是Go语言编写的一个开源的实时分布式内存消息队列，其性能十分优异。 NSQ的优势有以下优势：
+
+1. NSQ提倡分布式和分散的拓扑，没有单点故障，支持容错和高可用性，并提供可靠的消息交付保证
+2. NSQ支持横向扩展，没有任何集中式代理。
+3. NSQ易于配置和部署，并且内置了管理界面。
+
+## NSQ的应用场景
+
+通常来说，消息队列都适用以下场景。
+
+### 异步处理
+
+参照下图利用消息队列把业务流程中的非关键流程异步化，从而显著降低业务请求的响应时间。![nsq应用场景1](https://www.liwenzhou.com/images/Go/nsq/nsq1.png)
+
+### 应用解耦
+
+通过使用消息队列将不同的业务逻辑解耦，降低系统间的耦合，提高系统的健壮性。后续有其他业务要使用订单数据可直接订阅消息队列，提高系统的灵活性。![nsq应用场景1](https://www.liwenzhou.com/images/Go/nsq/nsq2.png)
+
+### 流量削峰
+
+类似秒杀（大秒）等场景下，某一时间可能会产生大量的请求，使用消息队列能够为后端处理请求提供一定的缓冲区，保证后端服务的稳定性。![nsq应用场景1](https://www.liwenzhou.com/images/Go/nsq/nsq3.png)
+
+## 安装
+
+[官方下载页面](https://nsq.io/deployment/installing.html)根据自己的平台下载并解压即可。
+
+## NSQ组件
+
+### nsqd
+
+nsqd是一个守护进程，它接收、排队并向客户端发送消息。
+
+启动`nsqd`，指定`-broadcast-address=127.0.0.1`来配置广播地址
+
+```go
+./nsqd -broadcast-address=127.0.0.1
+```
+
+如果是在搭配`nsqlookupd`使用的模式下需要还指定`nsqlookupd`地址:
+
+```bash
+./nsqd -broadcast-address=127.0.0.1 -lookupd-tcp-address=127.0.0.1:4160
+```
+
+如果是部署了多个`nsqlookupd`节点的集群，那还可以指定多个`-lookupd-tcp-address`。
+
+`nsqdq`相关配置项如下：
+
+```go
+-auth-http-address value
+    <addr>:<port> to query auth server (may be given multiple times)
+-broadcast-address string
+    address that will be registered with lookupd (defaults to the OS hostname) (default "PROSNAKES.local")
+-config string
+    path to config file
+-data-path string
+    path to store disk-backed messages
+-deflate
+    enable deflate feature negotiation (client compression) (default true)
+-e2e-processing-latency-percentile value
+    message processing time percentiles (as float (0, 1.0]) to track (can be specified multiple times or comma separated '1.0,0.99,0.95', default none)
+-e2e-processing-latency-window-time duration
+    calculate end to end latency quantiles for this duration of time (ie: 60s would only show quantile calculations from the past 60 seconds) (default 10m0s)
+-http-address string
+    <addr>:<port> to listen on for HTTP clients (default "0.0.0.0:4151")
+-http-client-connect-timeout duration
+    timeout for HTTP connect (default 2s)
+-http-client-request-timeout duration
+    timeout for HTTP request (default 5s)
+-https-address string
+    <addr>:<port> to listen on for HTTPS clients (default "0.0.0.0:4152")
+-log-prefix string
+    log message prefix (default "[nsqd] ")
+-lookupd-tcp-address value
+    lookupd TCP address (may be given multiple times)
+-max-body-size int
+    maximum size of a single command body (default 5242880)
+-max-bytes-per-file int
+    number of bytes per diskqueue file before rolling (default 104857600)
+-max-deflate-level int
+    max deflate compression level a client can negotiate (> values == > nsqd CPU usage) (default 6)
+-max-heartbeat-interval duration
+    maximum client configurable duration of time between client heartbeats (default 1m0s)
+-max-msg-size int
+    maximum size of a single message in bytes (default 1048576)
+-max-msg-timeout duration
+    maximum duration before a message will timeout (default 15m0s)
+-max-output-buffer-size int
+    maximum client configurable size (in bytes) for a client output buffer (default 65536)
+-max-output-buffer-timeout duration
+    maximum client configurable duration of time between flushing to a client (default 1s)
+-max-rdy-count int
+    maximum RDY count for a client (default 2500)
+-max-req-timeout duration
+    maximum requeuing timeout for a message (default 1h0m0s)
+-mem-queue-size int
+    number of messages to keep in memory (per topic/channel) (default 10000)
+-msg-timeout string
+    duration to wait before auto-requeing a message (default "1m0s")
+-node-id int
+    unique part for message IDs, (int) in range [0,1024) (default is hash of hostname) (default 616)
+-snappy
+    enable snappy feature negotiation (client compression) (default true)
+-statsd-address string
+    UDP <addr>:<port> of a statsd daemon for pushing stats
+-statsd-interval string
+    duration between pushing to statsd (default "1m0s")
+-statsd-mem-stats
+    toggle sending memory and GC stats to statsd (default true)
+-statsd-prefix string
+    prefix used for keys sent to statsd (%s for host replacement) (default "nsq.%s")
+-sync-every int
+    number of messages per diskqueue fsync (default 2500)
+-sync-timeout duration
+    duration of time per diskqueue fsync (default 2s)
+-tcp-address string
+    <addr>:<port> to listen on for TCP clients (default "0.0.0.0:4150")
+-tls-cert string
+    path to certificate file
+-tls-client-auth-policy string
+    client certificate auth policy ('require' or 'require-verify')
+-tls-key string
+    path to key file
+-tls-min-version value
+    minimum SSL/TLS version acceptable ('ssl3.0', 'tls1.0', 'tls1.1', or 'tls1.2') (default 769)
+-tls-required
+    require TLS for client connections (true, false, tcp-https)
+-tls-root-ca-file string
+    path to certificate authority file
+-verbose
+    enable verbose logging
+-version
+    print version string
+-worker-id
+    do NOT use this, use --node-id
+```
+
+### nsqlookupd
+
+nsqlookupd是维护所有nsqd状态、提供服务发现的守护进程。它能为消费者查找特定`topic`下的nsqd提供了运行时的自动发现服务。 它不维持持久状态，也不需要与任何其他nsqlookupd实例协调以满足查询。因此根据你系统的冗余要求尽可能多地部署`nsqlookupd`节点。它们小豪的资源很少，可以与其他服务共存。我们的建议是为每个数据中心运行至少3个集群。
+
+`nsqlookupd`相关配置项如下：
+
+```bash
+-broadcast-address string
+    address of this lookupd node, (default to the OS hostname) (default "PROSNAKES.local")
+-config string
+    path to config file
+-http-address string
+    <addr>:<port> to listen on for HTTP clients (default "0.0.0.0:4161")
+-inactive-producer-timeout duration
+    duration of time a producer will remain in the active list since its last ping (default 5m0s)
+-log-prefix string
+    log message prefix (default "[nsqlookupd] ")
+-tcp-address string
+    <addr>:<port> to listen on for TCP clients (default "0.0.0.0:4160")
+-tombstone-lifetime duration
+    duration of time a producer will remain tombstoned if registration remains (default 45s)
+-verbose
+    enable verbose logging
+-version
+    print version string
+```
+
+### nsqadmin
+
+一个实时监控集群状态、执行各种管理任务的Web管理平台。 启动`nsqadmin`，指定`nsqlookupd`地址:
+
+```bash
+./nsqadmin -lookupd-http-address=127.0.0.1:4161
+```
+
+我们可以使用浏览器打开`http://127.0.0.1:4171/`访问如下管理界面。![nsqadmin管理界面](https://www.liwenzhou.com/images/Go/nsq/nsqadmin0.png)
+
+`nsqadmin`相关的配置项如下：
+
+```go
+-allow-config-from-cidr string
+    A CIDR from which to allow HTTP requests to the /config endpoint (default "127.0.0.1/8")
+-config string
+    path to config file
+-graphite-url string
+    graphite HTTP address
+-http-address string
+    <addr>:<port> to listen on for HTTP clients (default "0.0.0.0:4171")
+-http-client-connect-timeout duration
+    timeout for HTTP connect (default 2s)
+-http-client-request-timeout duration
+    timeout for HTTP request (default 5s)
+-http-client-tls-cert string
+    path to certificate file for the HTTP client
+-http-client-tls-insecure-skip-verify
+    configure the HTTP client to skip verification of TLS certificates
+-http-client-tls-key string
+    path to key file for the HTTP client
+-http-client-tls-root-ca-file string
+    path to CA file for the HTTP client
+-log-prefix string
+    log message prefix (default "[nsqadmin] ")
+-lookupd-http-address value
+    lookupd HTTP address (may be given multiple times)
+-notification-http-endpoint string
+    HTTP endpoint (fully qualified) to which POST notifications of admin actions will be sent
+-nsqd-http-address value
+    nsqd HTTP address (may be given multiple times)
+-proxy-graphite
+    proxy HTTP requests to graphite
+-statsd-counter-format string
+    The counter stats key formatting applied by the implementation of statsd. If no formatting is desired, set this to an empty string. (default "stats.counters.%s.count")
+-statsd-gauge-format string
+    The gauge stats key formatting applied by the implementation of statsd. If no formatting is desired, set this to an empty string. (default "stats.gauges.%s")
+-statsd-interval duration
+    time interval nsqd is configured to push to statsd (must match nsqd) (default 1m0s)
+-statsd-prefix string
+    prefix used for keys sent to statsd (%s for host replacement, must match nsqd) (default "nsq.%s")
+-version
+    print version string
+```
+
+## NSQ架构
+
+### NSQ工作模式
+
+![nsq架构设计](https://www.liwenzhou.com/images/Go/nsq/nsq4.png)
+
+### Topic和Channel
+
+每个nsqd实例旨在一次处理多个数据流。这些数据流称为`“topics”`，一个`topic`具有1个或多个`“channels”`。每个`channel`都会收到`topic`所有消息的副本，实际上下游的服务是通过对应的`channel`来消费`topic`消息。
+
+`topic`和`channel`不是预先配置的。`topic`在首次使用时创建，方法是将其发布到指定`topic`，或者订阅指定`topic`上的`channel`。`channel`是通过订阅指定的`channel`在第一次使用时创建的。
+
+`topic`和`channel`都相互独立地缓冲数据，防止缓慢的消费者导致其他`chennel`的积压（同样适用于`topic`级别）。
+
+`channel`可以并且通常会连接多个客户端。假设所有连接的客户端都处于准备接收消息的状态，则每条消息将被传递到随机客户端。例如：
+
+![nsq架构设计](https://www.liwenzhou.com/images/Go/nsq/nsq5.gif)总而言之，消息是从`topic -> channel`（每个channel接收该topic的所有消息的副本）多播的，但是从`channel -> consumers`均匀分布（每个消费者接收该channel的一部分消息）。
+
+### NSQ接收和发送消息流程
+
+![nsq架构设计](https://www.liwenzhou.com/images/Go/nsq/nsq6.png)
+
+## NSQ特性
+
+- 消息默认不持久化，可以配置成持久化模式。nsq采用的方式时内存+硬盘的模式，当内存到达一定程度时就会将数据持久化到硬盘。
+  - 如果将`--mem-queue-size`设置为0，所有的消息将会存储到磁盘。
+  - 服务器重启时也会将当时在内存中的消息持久化。
+- 每条消息至少传递一次。
+- 消息不保证有序。
+
+## Go操作NSQ
+
+官方提供了Go语言版的客户端：[go-nsq](https://github.com/nsqio/go-nsq)，更多客户端支持请查看[CLIENT LIBRARIES](https://nsq.io/clients/client_libraries.html)。
+
+### 安装
+
+```bash
+go get -u github.com/nsqio/go-nsq
+```
+
+### 生产者
+
+一个简单的生产者示例代码如下：
+
+```go
+// nsq_producer/main.go
+package main
+
+import (
+	"bufio"
+	"fmt"
+	"os"
+	"strings"
+
+	"github.com/nsqio/go-nsq"
+)
+
+// NSQ Producer Demo
+
+var producer *nsq.Producer
+
+// 初始化生产者
+func initProducer(str string) (err error) {
+	config := nsq.NewConfig()
+	producer, err = nsq.NewProducer(str, config)
+	if err != nil {
+		fmt.Printf("create producer failed, err:%v\n", err)
+		return err
+	}
+	return nil
+}
+
+func main() {
+	nsqAddress := "127.0.0.1:4150"
+	err := initProducer(nsqAddress)
+	if err != nil {
+		fmt.Printf("init producer failed, err:%v\n", err)
+		return
+	}
+
+	reader := bufio.NewReader(os.Stdin) // 从标准输入读取
+	for {
+		data, err := reader.ReadString('\n')
+		if err != nil {
+			fmt.Printf("read string from stdin failed, err:%v\n", err)
+			continue
+		}
+		data = strings.TrimSpace(data)
+		if strings.ToUpper(data) == "Q" { // 输入Q退出
+			break
+		}
+		// 向 'topic_demo' publish 数据
+		err = producer.Publish("topic_demo", []byte(data))
+		if err != nil {
+			fmt.Printf("publish msg to nsq failed, err:%v\n", err)
+			continue
+		}
+	}
+}
+```
+
+将上面的代码编译执行，然后在终端输入两条数据`123`和`456`：
+
+```bash
+$ ./nsq_producer 
+123
+2018/10/22 18:41:20 INF    1 (127.0.0.1:4150) connecting to nsqd
+456
+```
+
+使用浏览器打开`http://127.0.0.1:4171/`可以查看到类似下面的页面： 在下面这个页面能看到当前的`topic`信息：![nsqadmin界面1](https://www.liwenzhou.com/images/Go/nsq/nsqadmin1.png)
+
+点击页面上的`topic_demo`就能进入一个展示更多详细信息的页面，在这个页面上我们可以查看和管理`topic`，同时能够看到目前在`LWZMBP:4151 (127.0.01:4151)`这个`nsqd`上有2条message。又因为没有消费者接入所以暂时没有创建`channel`。![nsqadmin界面2](https://www.liwenzhou.com/images/Go/nsq/nsqadmin2.png)
+
+在`/nodes`这个页面我们能够很方便的查看当前接入`lookupd`的`nsqd`节点。![nsqadmin界面3](https://www.liwenzhou.com/images/Go/nsq/nsqadmin3.png)
+
+这个`/counter`页面显示了处理的消息数量，因为我们没有接入消费者，所以处理的消息数量为0。![nsqadmin界面4](https://www.liwenzhou.com/images/Go/nsq/nsqadmin4.png)
+
+在`/lookup`界面支持创建`topic`和`channel`。![nsqadmin界面5](https://www.liwenzhou.com/images/Go/nsq/nsqadmin5.png)
+
+### 消费者
+
+一个简单的消费者示例代码如下：
+
+```go
+// nsq_consumer/main.go
+package main
+
+import (
+	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"github.com/nsqio/go-nsq"
+)
+
+// NSQ Consumer Demo
+
+// MyHandler 是一个消费者类型
+type MyHandler struct {
+	Title string
+}
+
+// HandleMessage 是需要实现的处理消息的方法
+func (m *MyHandler) HandleMessage(msg *nsq.Message) (err error) {
+	fmt.Printf("%s recv from %v, msg:%v\n", m.Title, msg.NSQDAddress, string(msg.Body))
+	return
+}
+
+// 初始化消费者
+func initConsumer(topic string, channel string, address string) (err error) {
+	config := nsq.NewConfig()
+	config.LookupdPollInterval = 15 * time.Second
+	c, err := nsq.NewConsumer(topic, channel, config)
+	if err != nil {
+		fmt.Printf("create consumer failed, err:%v\n", err)
+		return
+	}
+	consumer := &MyHandler{
+		Title: "沙河1号",
+	}
+	c.AddHandler(consumer)
+
+	// if err := c.ConnectToNSQD(address); err != nil { // 直接连NSQD
+	if err := c.ConnectToNSQLookupd(address); err != nil { // 通过lookupd查询
+		return err
+	}
+	return nil
+
+}
+
+func main() {
+	err := initConsumer("topic_demo", "first", "127.0.0.1:4161")
+	if err != nil {
+		fmt.Printf("init consumer failed, err:%v\n", err)
+		return
+	}
+	c := make(chan os.Signal)        // 定义一个信号的通道
+	signal.Notify(c, syscall.SIGINT) // 转发键盘中断信号到c
+	<-c                              // 阻塞
+}
+```
+
+将上面的代码保存之后编译执行，就能够获取之前我们publish的两条消息了：
+
+```bash
+$ ./nsq_consumer 
+2018/10/22 18:49:06 INF    1 [topic_demo/first] querying nsqlookupd http://127.0.0.1:4161/lookup?topic=topic_demo
+2018/10/22 18:49:06 INF    1 [topic_demo/first] (127.0.0.1:4150) connecting to nsqd
+沙河1号 recv from 127.0.0.1:4150, msg:123
+沙河1号 recv from 127.0.0.1:4150, msg:456
+```
+
+同时在nsqadmin的`/counter`页面查看到处理的数据数量为2。![nsqadmin界面5](https://www.liwenzhou.com/images/Go/nsq/nsqadmin6.png)
+
+关于`go-nsq`的更多内容请阅读[go-nsq的官方文档](https://godoc.org/github.com/nsqio/go-nsq)。
+
+# Go标准库Context
+
+2019年6月22日
+
+ 
+
+| [Golang](https://www.liwenzhou.com/categories/Golang)
+
+ 
+
+本文总阅读量20119次
+
+
+
+在 Go http包的Server中，每一个请求在都有一个对应的 goroutine 去处理。请求处理函数通常会启动额外的 goroutine 用来访问后端服务，比如数据库和RPC服务。用来处理一个请求的 goroutine 通常需要访问一些与请求特定的数据，比如终端用户的身份认证信息、验证相关的token、请求的截止时间。 当一个请求被取消或超时时，所有用来处理该请求的 goroutine 都应该迅速退出，然后系统才能释放这些 goroutine 占用的资源。
+
+## 为什么需要Context
+
+### 基本示例
+
+```go
+package main
+
+import (
+	"fmt"
+	"sync"
+
+	"time"
+)
+
+var wg sync.WaitGroup
+
+// 初始的例子
+
+func worker() {
+	for {
+		fmt.Println("worker")
+		time.Sleep(time.Second)
+	}
+	// 如何接收外部命令实现退出
+	wg.Done()
+}
+
+func main() {
+	wg.Add(1)
+	go worker()
+	// 如何优雅的实现结束子goroutine
+	wg.Wait()
+	fmt.Println("over")
+}
+```
+
+### 全局变量方式
+
+```go
+package main
+
+import (
+	"fmt"
+	"sync"
+
+	"time"
+)
+
+var wg sync.WaitGroup
+var exit bool
+
+// 全局变量方式存在的问题：
+// 1. 使用全局变量在跨包调用时不容易统一
+// 2. 如果worker中再启动goroutine，就不太好控制了。
+
+func worker() {
+	for {
+		fmt.Println("worker")
+		time.Sleep(time.Second)
+		if exit {
+			break
+		}
+	}
+	wg.Done()
+}
+
+func main() {
+	wg.Add(1)
+	go worker()
+	time.Sleep(time.Second * 3) // sleep3秒以免程序过快退出
+	exit = true                 // 修改全局变量实现子goroutine的退出
+	wg.Wait()
+	fmt.Println("over")
+}
+```
+
+### 通道方式
+
+```go
+package main
+
+import (
+	"fmt"
+	"sync"
+
+	"time"
+)
+
+var wg sync.WaitGroup
+
+// 管道方式存在的问题：
+// 1. 使用全局变量在跨包调用时不容易实现规范和统一，需要维护一个共用的channel
+
+func worker(exitChan chan struct{}) {
+LOOP:
+	for {
+		fmt.Println("worker")
+		time.Sleep(time.Second)
+		select {
+		case <-exitChan: // 等待接收上级通知
+			break LOOP
+		default:
+		}
+	}
+	wg.Done()
+}
+
+func main() {
+	var exitChan = make(chan struct{})
+	wg.Add(1)
+	go worker(exitChan)
+	time.Sleep(time.Second * 3) // sleep3秒以免程序过快退出
+	exitChan <- struct{}{}      // 给子goroutine发送退出信号
+	close(exitChan)
+	wg.Wait()
+	fmt.Println("over")
+}
+```
+
+### 官方版的方案
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"sync"
+
+	"time"
+)
+
+var wg sync.WaitGroup
+
+func worker(ctx context.Context) {
+LOOP:
+	for {
+		fmt.Println("worker")
+		time.Sleep(time.Second)
+		select {
+		case <-ctx.Done(): // 等待上级通知
+			break LOOP
+		default:
+		}
+	}
+	wg.Done()
+}
+
+func main() {
+	ctx, cancel := context.WithCancel(context.Background())
+	wg.Add(1)
+	go worker(ctx)
+	time.Sleep(time.Second * 3)
+	cancel() // 通知子goroutine结束
+	wg.Wait()
+	fmt.Println("over")
+}
+```
+
+当子goroutine又开启另外一个goroutine时，只需要将ctx传入即可：
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"sync"
+
+	"time"
+)
+
+var wg sync.WaitGroup
+
+func worker(ctx context.Context) {
+	go worker2(ctx)
+LOOP:
+	for {
+		fmt.Println("worker")
+		time.Sleep(time.Second)
+		select {
+		case <-ctx.Done(): // 等待上级通知
+			break LOOP
+		default:
+		}
+	}
+	wg.Done()
+}
+
+func worker2(ctx context.Context) {
+LOOP:
+	for {
+		fmt.Println("worker2")
+		time.Sleep(time.Second)
+		select {
+		case <-ctx.Done(): // 等待上级通知
+			break LOOP
+		default:
+		}
+	}
+}
+func main() {
+	ctx, cancel := context.WithCancel(context.Background())
+	wg.Add(1)
+	go worker(ctx)
+	time.Sleep(time.Second * 3)
+	cancel() // 通知子goroutine结束
+	wg.Wait()
+	fmt.Println("over")
+}
+```
+
+## Context初识
+
+Go1.7加入了一个新的标准库`context`，它定义了`Context`类型，专门用来简化 对于处理单个请求的多个 goroutine 之间与请求域的数据、取消信号、截止时间等相关操作，这些操作可能涉及多个 API 调用。
+
+对服务器传入的请求应该创建上下文，而对服务器的传出调用应该接受上下文。它们之间的函数调用链必须传递上下文，或者可以使用`WithCancel`、`WithDeadline`、`WithTimeout`或`WithValue`创建的派生上下文。当一个上下文被取消时，它派生的所有上下文也被取消。
+
+## Context接口
+
+`context.Context`是一个接口，该接口定义了四个需要实现的方法。具体签名如下：
+
+```go
+type Context interface {
+    Deadline() (deadline time.Time, ok bool)
+    Done() <-chan struct{}
+    Err() error
+    Value(key interface{}) interface{}
+}
+```
+
+其中：
+
+- `Deadline`方法需要返回当前`Context`被取消的时间，也就是完成工作的截止时间（deadline）；
+
+- `Done`方法需要返回一个`Channel`，这个Channel会在当前工作完成或者上下文被取消之后关闭，多次调用`Done`方法会返回同一个Channel；
+
+- ```
+  Err
+  ```
+
+  方法会返回当前
+
+  ```
+  Context
+  ```
+
+  结束的原因，它只会在
+
+  ```
+  Done
+  ```
+
+  返回的Channel被关闭时才会返回非空的值；
+
+  - 如果当前`Context`被取消就会返回`Canceled`错误；
+  - 如果当前`Context`超时就会返回`DeadlineExceeded`错误；
+
+- `Value`方法会从`Context`中返回键对应的值，对于同一个上下文来说，多次调用`Value` 并传入相同的`Key`会返回相同的结果，该方法仅用于传递跨API和进程间跟请求域的数据；
+
+### Background()和TODO()
+
+Go内置两个函数：`Background()`和`TODO()`，这两个函数分别返回一个实现了`Context`接口的`background`和`todo`。我们代码中最开始都是以这两个内置的上下文对象作为最顶层的`partent context`，衍生出更多的子上下文对象。
+
+`Background()`主要用于main函数、初始化以及测试代码中，作为Context这个树结构的最顶层的Context，也就是根Context。
+
+`TODO()`，它目前还不知道具体的使用场景，如果我们不知道该使用什么Context的时候，可以使用这个。
+
+`background`和`todo`本质上都是`emptyCtx`结构体类型，是一个不可取消，没有设置截止时间，没有携带任何值的Context。
+
+## With系列函数
+
+此外，`context`包中还定义了四个With系列函数。
+
+### WithCancel
+
+`WithCancel`的函数签名如下：
+
+```go
+func WithCancel(parent Context) (ctx Context, cancel CancelFunc)
+```
+
+`WithCancel`返回带有新Done通道的父节点的副本。当调用返回的cancel函数或当关闭父上下文的Done通道时，将关闭返回上下文的Done通道，无论先发生什么情况。
+
+取消此上下文将释放与其关联的资源，因此代码应该在此上下文中运行的操作完成后立即调用cancel。
+
+```go
+func gen(ctx context.Context) <-chan int {
+		dst := make(chan int)
+		n := 1
+		go func() {
+			for {
+				select {
+				case <-ctx.Done():
+					return // return结束该goroutine，防止泄露
+				case dst <- n:
+					n++
+				}
+			}
+		}()
+		return dst
+	}
+func main() {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel() // 当我们取完需要的整数后调用cancel
+
+	for n := range gen(ctx) {
+		fmt.Println(n)
+		if n == 5 {
+			break
+		}
+	}
+}
+```
+
+上面的示例代码中，`gen`函数在单独的goroutine中生成整数并将它们发送到返回的通道。 gen的调用者在使用生成的整数之后需要取消上下文，以免`gen`启动的内部goroutine发生泄漏。
+
+### WithDeadline
+
+`WithDeadline`的函数签名如下：
+
+```go
+func WithDeadline(parent Context, deadline time.Time) (Context, CancelFunc)
+```
+
+返回父上下文的副本，并将deadline调整为不迟于d。如果父上下文的deadline已经早于d，则WithDeadline(parent, d)在语义上等同于父上下文。当截止日过期时，当调用返回的cancel函数时，或者当父上下文的Done通道关闭时，返回上下文的Done通道将被关闭，以最先发生的情况为准。
+
+取消此上下文将释放与其关联的资源，因此代码应该在此上下文中运行的操作完成后立即调用cancel。
+
+```go
+func main() {
+	d := time.Now().Add(50 * time.Millisecond)
+	ctx, cancel := context.WithDeadline(context.Background(), d)
+
+	// 尽管ctx会过期，但在任何情况下调用它的cancel函数都是很好的实践。
+	// 如果不这样做，可能会使上下文及其父类存活的时间超过必要的时间。
+	defer cancel()
+
+	select {
+	case <-time.After(1 * time.Second):
+		fmt.Println("overslept")
+	case <-ctx.Done():
+		fmt.Println(ctx.Err())
+	}
+}
+```
+
+上面的代码中，定义了一个50毫秒之后过期的deadline，然后我们调用`context.WithDeadline(context.Background(), d)`得到一个上下文（ctx）和一个取消函数（cancel），然后使用一个select让主程序陷入等待：等待1秒后打印`overslept`退出或者等待ctx过期后退出。
+
+在上面的示例代码中，因为ctx 50毫秒后就会过期，所以`ctx.Done()`会先接收到context到期通知，并且会打印ctx.Err()的内容。
+
+### WithTimeout
+
+`WithTimeout`的函数签名如下：
+
+```go
+func WithTimeout(parent Context, timeout time.Duration) (Context, CancelFunc)
+```
+
+`WithTimeout`返回`WithDeadline(parent, time.Now().Add(timeout))`。
+
+取消此上下文将释放与其相关的资源，因此代码应该在此上下文中运行的操作完成后立即调用cancel，通常用于数据库或者网络连接的超时控制。具体示例如下：
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"sync"
+
+	"time"
+)
+
+// context.WithTimeout
+
+var wg sync.WaitGroup
+
+func worker(ctx context.Context) {
+LOOP:
+	for {
+		fmt.Println("db connecting ...")
+		time.Sleep(time.Millisecond * 10) // 假设正常连接数据库耗时10毫秒
+		select {
+		case <-ctx.Done(): // 50毫秒后自动调用
+			break LOOP
+		default:
+		}
+	}
+	fmt.Println("worker done!")
+	wg.Done()
+}
+
+func main() {
+	// 设置一个50毫秒的超时
+	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*50)
+	wg.Add(1)
+	go worker(ctx)
+	time.Sleep(time.Second * 5)
+	cancel() // 通知子goroutine结束
+	wg.Wait()
+	fmt.Println("over")
+}
+```
+
+### WithValue
+
+`WithValue`函数能够将请求作用域的数据与 Context 对象建立关系。声明如下：
+
+```go
+func WithValue(parent Context, key, val interface{}) Context
+```
+
+`WithValue`返回父节点的副本，其中与key关联的值为val。
+
+仅对API和进程间传递请求域的数据使用上下文值，而不是使用它来传递可选参数给函数。
+
+所提供的键必须是可比较的，并且不应该是`string`类型或任何其他内置类型，以避免使用上下文在包之间发生冲突。`WithValue`的用户应该为键定义自己的类型。为了避免在分配给interface{}时进行分配，上下文键通常具有具体类型`struct{}`。或者，导出的上下文关键变量的静态类型应该是指针或接口。
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"sync"
+
+	"time"
+)
+
+// context.WithValue
+
+type TraceCode string
+
+var wg sync.WaitGroup
+
+func worker(ctx context.Context) {
+	key := TraceCode("TRACE_CODE")
+	traceCode, ok := ctx.Value(key).(string) // 在子goroutine中获取trace code
+	if !ok {
+		fmt.Println("invalid trace code")
+	}
+LOOP:
+	for {
+		fmt.Printf("worker, trace code:%s\n", traceCode)
+		time.Sleep(time.Millisecond * 10) // 假设正常连接数据库耗时10毫秒
+		select {
+		case <-ctx.Done(): // 50毫秒后自动调用
+			break LOOP
+		default:
+		}
+	}
+	fmt.Println("worker done!")
+	wg.Done()
+}
+
+func main() {
+	// 设置一个50毫秒的超时
+	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*50)
+	// 在系统的入口中设置trace code传递给后续启动的goroutine实现日志数据聚合
+	ctx = context.WithValue(ctx, TraceCode("TRACE_CODE"), "12512312234")
+	wg.Add(1)
+	go worker(ctx)
+	time.Sleep(time.Second * 5)
+	cancel() // 通知子goroutine结束
+	wg.Wait()
+	fmt.Println("over")
+}
+```
+
+## 使用Context的注意事项
+
+- 推荐以参数的方式显示传递Context
+- 以Context作为参数的函数方法，应该把Context作为第一个参数。
+- 给一个函数方法传递Context的时候，不要传递nil，如果不知道传递什么，就使用context.TODO()
+- Context的Value相关方法应该传递请求域的必要数据，不应该用于传递可选参数
+- Context是线程安全的，可以放心的在多个goroutine中传递
+
+## 客户端超时取消示例
+
+调用服务端API时如何在客户端实现超时控制？
+
+### server端
+
+```go
+// context_timeout/server/main.go
+package main
+
+import (
+	"fmt"
+	"math/rand"
+	"net/http"
+
+	"time"
+)
+
+// server端，随机出现慢响应
+
+func indexHandler(w http.ResponseWriter, r *http.Request) {
+	number := rand.Intn(2)
+	if number == 0 {
+		time.Sleep(time.Second * 10) // 耗时10秒的慢响应
+		fmt.Fprintf(w, "slow response")
+		return
+	}
+	fmt.Fprint(w, "quick response")
+}
+
+func main() {
+	http.HandleFunc("/", indexHandler)
+	err := http.ListenAndServe(":8000", nil)
+	if err != nil {
+		panic(err)
+	}
+}
+```
+
+### client端
+
+```go
+// context_timeout/client/main.go
+package main
+
+import (
+	"context"
+	"fmt"
+	"io/ioutil"
+	"net/http"
+	"sync"
+	"time"
+)
+
+// 客户端
+
+type respData struct {
+	resp *http.Response
+	err  error
+}
+
+func doCall(ctx context.Context) {
+	transport := http.Transport{
+	   // 请求频繁可定义全局的client对象并启用长链接
+	   // 请求不频繁使用短链接
+	   DisableKeepAlives: true, 	}
+	client := http.Client{
+		Transport: &transport,
+	}
+
+	respChan := make(chan *respData, 1)
+	req, err := http.NewRequest("GET", "http://127.0.0.1:8000/", nil)
+	if err != nil {
+		fmt.Printf("new requestg failed, err:%v\n", err)
+		return
+	}
+	req = req.WithContext(ctx) // 使用带超时的ctx创建一个新的client request
+	var wg sync.WaitGroup
+	wg.Add(1)
+	defer wg.Wait()
+	go func() {
+		resp, err := client.Do(req)
+		fmt.Printf("client.do resp:%v, err:%v\n", resp, err)
+		rd := &respData{
+			resp: resp,
+			err:  err,
+		}
+		respChan <- rd
+		wg.Done()
+	}()
+
+	select {
+	case <-ctx.Done():
+		//transport.CancelRequest(req)
+		fmt.Println("call api timeout")
+	case result := <-respChan:
+		fmt.Println("call server api success")
+		if result.err != nil {
+			fmt.Printf("call server api failed, err:%v\n", result.err)
+			return
+		}
+		defer result.resp.Body.Close()
+		data, _ := ioutil.ReadAll(result.resp.Body)
+		fmt.Printf("resp:%v\n", string(data))
+	}
+}
+
+func main() {
+	// 定义一个100毫秒的超时
+	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*100)
+	defer cancel() // 调用cancel释放子goroutine资源
+	doCall(ctx)
+}
+```
+
+# 第三方库和自定义库导入
+
+在同一个目录中的库包名需要一致
+
+首字母大写的方法或者变量才能在其他库中使用；

@@ -18,6 +18,24 @@
 
 3.go build -o xxx （-o:自定义打包文件名称）
 
+
+
+# GO111MODULES管理项目
+
+- 通过`go env`查看当前go环境配置
+- 配置GO111MODULE环境变量，GO111MODULE存在三个值（默认值`auto`,`on`,`off`）
+  - GO111MODULE=off
+     go命令行将不会支持module功能，寻找依赖包的方式将会沿用旧版本的通过vendor目录或者GOPATH模式来查找。
+  - GO111MODULE=on
+     go命令行会使用modules，不会去GOPATH目录下查找。
+  - GO111MODULE=auto（默认值）
+     go命令行将会根据当前目录来决定是否启用module功能。下面两种情形将启用module功能：
+     a. 当前目录在GOPATH/src之外且该目录包含go.mod文件
+     b. 当前文件在包含go.mod文件的目录下面。
+- 通过`go env -w GO111MODULE=on`来打开module管理
+- 使用`go mod init {projectName}`初始化项目生成`.mod`文件
+- `.mod`中包含当前包名称、引用的第三方包地址、当前golang SDK版本等，是项目管理配置文件
+
 # Go语言基本结构
 
 ```go

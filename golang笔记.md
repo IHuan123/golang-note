@@ -311,6 +311,8 @@ Go语言中以`bool`类型进行声明布尔型数据，布尔型数据只有tru
 > Go语言中不允许将整型强制转换为布尔型。
 >
 > 布尔型无法参加数值运算，也无法与其他类型进行转换。
+>
+> 在 Go 中，真值用 true 表示，不但不与 1 相等，并且更加严格，不同类型无法进行比较，而假值用 false 表示，同样与 0 无法比较。
 
 ## 其他数字类型
 
@@ -1052,13 +1054,29 @@ Map是一种集合，所以我们可以像迭代数组和切片那样迭代它�
 
 ### Map定义
 
+字典（Map 类型），是由若干个 `key:value` 这样的键值对映射组合在一起的数据结构。
+
+它是哈希表的一个实现，这就要求它的每个映射里的key，都是唯一的，可以使用 `==` 和 `!=` 来进行判等操作，换句话说就是key必须是可哈希的。
+
+什么叫可哈希的？简单来说，一个不可变对象，都可以用一个哈希值来唯一表示，这样的不可变对象，比如字符串类型的对象（可以说除了切片、 字典，函数之外的其他内建类型都算）。
+
+意思就是，你的 key 不能是切片，不能是字典，不能是函数。。
+
+字典由key和value组成，它们各自有各自的类型。
+
+在声明字典时，必须指定好你的key和value是什么类型的，然后使用 map 关键字来告诉Go这是一个字典。
+
+```go
+map[KEY_TYPE]VALUE_TYPE
+```
+
 Go语言中`map`的定义语法如下啊：
 
 ```go
 map[keyType]ValueType
 ```
 
-其中：
+S其中：
 
 + KeyType：表示键的类型。
 + ValueType：表示键对应的类型。
@@ -1069,13 +1087,48 @@ map类型的变量默认初始值为nil，需要使用make()函数来分配内�
 make(map[keyType]ValueType,[cap])
 ```
 
-
-
-
-
 其中cap表示map的容量，该参数虽然不是必须的，但是我们应该在初始化map的时候就为其指定一个合适的容量。
 
+### 判断 key 是否存在
+
+当key不存在，会返回value-type的零值 ，所以你不能通过返回的结果是否是零值来判断对应的 key 是否存在，因为 key 对应的 value 值可能恰好就是零值。
+
+其实字典的下标读取可以返回两个值，使用第二个返回值都表示对应的 key 是否存在，若存在ok为true，若不存在，则ok为false
+
+```go
+import "fmt"
+
+func main() {
+    scores := map[string]int{"english": 80, "chinese": 85}
+    math, ok := scores["math"]
+    if ok {
+        fmt.Printf("math 的值是: %d", math)
+    } else {
+        fmt.Println("math 不存在")
+    }
+}
+```
+
+我们将上面的代码再优化一下
+
+```go
+import "fmt"
+
+func main() {
+    scores := map[string]int{"english": 80, "chinese": 85}
+    if math, ok := scores["math"]; ok {
+        fmt.Printf("math 的值是: %d", math)
+    } else {
+        fmt.Println("math 不存在")
+    }
+}
+```
+
+
+
 ### 按照指定顺序遍历map
+
+Go 语言中没有提供类似 Python 的 keys() 和 values() 这样方便的函数，想要获取，你得自己循环。
 
 ```go
 func main(){
